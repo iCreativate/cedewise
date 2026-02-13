@@ -10,7 +10,7 @@ interface DocumentUploadProps {
   folderPath?: string;
   allowedTypes?: string[];
   maxSizeMB?: number;
-  onFileUploaded?: (fileData: UploadedFileData) => void;
+  onFileUploaded?: (fileData: FileUploadResult) => void;
   multiple?: boolean;
   className?: string;
 }
@@ -23,6 +23,8 @@ export interface UploadedFileData {
   url: string;
   uploadedAt: Date;
 }
+
+export type FileUploadResult = UploadedFileData | { error: string };
 
 // Default configuration
 const DEFAULT_ALLOWED_TYPES = [
@@ -76,7 +78,7 @@ export default function DocumentUpload({
         if (!allowedTypes.includes(file.type)) {
           setError(`File type not allowed: ${file.type}`);
           if (onFileUploaded) {
-            onFileUploaded({ error: `File type not allowed: ${file.type}` });
+            onFileUploaded({ error: `File type not allowed: ${file.type}` } as FileUploadResult);
           }
           continue;
         }
@@ -87,7 +89,7 @@ export default function DocumentUpload({
           const errorMsg = `File too large: ${file.name} (${fileSizeMB.toFixed(2)}MB). Max size: ${maxSizeMB}MB`;
           setError(errorMsg);
           if (onFileUploaded) {
-            onFileUploaded({ error: errorMsg });
+            onFileUploaded({ error: errorMsg } as FileUploadResult);
           }
           continue;
         }
@@ -146,7 +148,7 @@ export default function DocumentUpload({
           const errorMsg = `Failed to upload: ${file.name}`;
           setError(errorMsg);
           if (onFileUploaded) {
-            onFileUploaded({ error: errorMsg });
+            onFileUploaded({ error: errorMsg } as FileUploadResult);
           }
           logger.error('S3 upload failed', {
             context: 'DOCUMENT_UPLOAD',
@@ -165,7 +167,7 @@ export default function DocumentUpload({
       console.error('Error during file upload:', err);
       setError(errorMsg);
       if (onFileUploaded) {
-        onFileUploaded({ error: errorMsg });
+        onFileUploaded({ error: errorMsg } as FileUploadResult);
       }
       logger.error('Unexpected error in document upload', {
         context: 'DOCUMENT_UPLOAD',

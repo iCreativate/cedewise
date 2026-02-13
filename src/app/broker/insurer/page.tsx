@@ -9,7 +9,7 @@ import {
   ChevronDownIcon,
   UserGroupIcon,
 } from '@heroicons/react/24/outline'
-import { CurrencySelector } from '@/components/CurrencySelector'
+import CurrencySelector from '@/components/CurrencySelector'
 import RoleGuard from '@/components/RoleGuard'
 
 const insurers = [

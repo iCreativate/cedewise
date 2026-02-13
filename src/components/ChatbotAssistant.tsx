@@ -92,15 +92,14 @@ export default function ChatbotAssistant({
         botId,
         botAliasId,
         localeId,
-        sessionIdRef.current,
         userMessage.text
       );
       
       if (response.success && response.messages && response.messages.length > 0) {
         // Add all messages from Lex as bot messages
         const botMessages: Message[] = response.messages
-          .filter(message => message && message.content) // Filter out null/undefined messages
-          .map(message => ({
+          .filter((message: { content?: string } | null) => message && message.content) // Filter out null/undefined messages
+          .map((message: { content?: string }) => ({
           id: generateId(),
           text: message.content || 'Sorry, I couldn\'t process that.',
           sender: 'bot',

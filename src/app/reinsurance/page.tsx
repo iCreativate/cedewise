@@ -12,8 +12,8 @@ import {
   ClockIcon,
   ArrowPathIcon,
 } from '@heroicons/react/24/solid'
-import TreatyModal from '@/components/TreatyModal'
-import CurrencySelector, { formatAmount } from '@/components/CurrencySelector'
+import TreatyModal, { type Treaty } from '@/components/TreatyModal'
+import CurrencySelector, { formatAmount, currencies } from '@/components/CurrencySelector'
 import { useCurrency } from '@/context/CurrencyContext'
 
 // Helper function to convert string monetary values to numbers
@@ -122,14 +122,15 @@ function classNames(...classes: string[]) {
 export default function Reinsurance() {
   const [selectedTreaty, setSelectedTreaty] = useState<typeof baseTreaties[0] | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const { selectedCurrency } = useCurrency()
+  const { currency: currencyCode } = useCurrency()
+  const selectedCurrency = currencies.find(c => c.code === currencyCode) ?? currencies[0]
 
   const handleTreatyClick = (treaty: typeof baseTreaties[0]) => {
     setSelectedTreaty(treaty)
     setIsModalOpen(true)
   }
 
-  const handleSaveTreaty = (updatedTreaty: typeof baseTreaties[0]) => {
+  const handleSaveTreaty = (_updatedTreaty: Treaty) => {
     setIsModalOpen(false)
     setSelectedTreaty(null)
   }

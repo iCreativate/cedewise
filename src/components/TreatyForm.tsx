@@ -1,7 +1,7 @@
 'use client'
 
 import { useForm } from 'react-hook-form'
-import CurrencySelector, { Currency } from './CurrencySelector'
+import CurrencySelector, { Currency, currencies } from './CurrencySelector'
 import { useCurrency } from '@/context/CurrencyContext'
 
 export interface TreatyFormData {
@@ -21,7 +21,8 @@ interface TreatyFormProps {
 }
 
 export default function TreatyForm({ initialData, onSubmit, onCancel }: TreatyFormProps) {
-  const { selectedCurrency } = useCurrency()
+  const { currency: currencyCode } = useCurrency()
+  const selectedCurrency = currencies.find(c => c.code === currencyCode) ?? currencies[0]
 
   const {
     register,

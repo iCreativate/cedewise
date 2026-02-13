@@ -4,9 +4,6 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-
 export default function ReinsurerDashboardPage() {
   const { userRole } = useUser();
   const router = useRouter();

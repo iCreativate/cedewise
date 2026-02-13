@@ -80,7 +80,7 @@ const sendToCloudWatch = async (entry: LogEntry) => {
     return;
   }
   
-  const dimensions = [
+  const dimensions: { Name: string; Value: string }[] = [
     { Name: 'Environment', Value: getNodeEnv() }
   ];
   

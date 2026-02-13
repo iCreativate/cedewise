@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { countries } from '../../../../../app/utils/countries'
 import { currencies } from '../../../../../app/utils/currencies'
 import { useUser } from '@/context/UserContext'
-import DocumentUpload, { UploadedFileData } from '@/components/DocumentUpload'
+import DocumentUpload, { UploadedFileData, FileUploadResult } from '@/components/DocumentUpload'
 import CurrencyConverter from '@/components/CurrencyConverter'
 import MultiSelect from '@/components/MultiSelect'
 import { logger } from '@/lib/logger'
@@ -84,10 +84,9 @@ export default function AutoFacPage() {
   }, [brokerCompany]);
   
   // Handle file upload completion from S3
-  const handleFileUploaded = (fileData: UploadedFileData) => {
+  const handleFileUploaded = (fileData: FileUploadResult) => {
+    if ('error' in fileData) return;
     setS3UploadedFiles(prev => [...prev, fileData]);
-    
-    // Log the file upload event
     logger.trackUserAction('AUTO_FAC_DOCUMENT_UPLOAD', userRole || 'unknown', {
       fileName: fileData.name,
       fileType: fileData.type,

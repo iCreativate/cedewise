@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { use, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { 
   CalendarIcon, 
@@ -278,7 +278,8 @@ function getStatusIcon(status: string) {
   }
 }
 
-export default function SubmissionDetailsPage({ params }: { params: { id: string } }) {
+export default function SubmissionDetailsPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params)
   const router = useRouter()
   const [submission, setSubmission] = useState<Submission | null>(null)
   const [loading, setLoading] = useState(true)
@@ -287,18 +288,18 @@ export default function SubmissionDetailsPage({ params }: { params: { id: string
   useEffect(() => {
     // In a real application, you would fetch the submission data from an API
     // For this demo, we'll use the mock data based on the ID
-    if (params.id === '123456') {
+    if (id === '123456') {
       setSubmission(mockNonProportionalSubmission)
-    } else if (params.id === '123457') {
+    } else if (id === '123457') {
       setSubmission(mockProportionalSubmission)
-    } else if (params.id === '123458') {
+    } else if (id === '123458') {
       setSubmission(mockTreatySubmission)
     } else {
       // Default to non-proportional if ID is not recognized
       setSubmission(mockNonProportionalSubmission)
     }
     setLoading(false)
-  }, [params.id])
+  }, [id])
 
   // Button action handlers
   const handleProcessSubmission = () => {

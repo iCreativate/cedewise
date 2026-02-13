@@ -61,7 +61,7 @@ export default function ForceNavigationPage() {
         }
       } catch (e) {
         console.error('Error in force navigation:', e)
-        setStatus(`Error: ${e.message}`)
+        setStatus(`Error: ${e instanceof Error ? e.message : String(e)}`)
       }
     }
     

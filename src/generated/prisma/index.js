@@ -182,7 +182,7 @@ const config = {
       "value": "prisma-client-js"
     },
     "output": {
-      "value": "/Users/johnmthembu/Documents/Work/apps/Cedewise/cedewise 2/src/generated/prisma",
+      "value": "/Users/johnmthembu/Documents/Work/2025/apps/Cedewise/cedewise 2 3/src/generated/prisma",
       "fromEnvVar": null
     },
     "config": {
@@ -196,7 +196,7 @@ const config = {
       }
     ],
     "previewFeatures": [],
-    "sourceFilePath": "/Users/johnmthembu/Documents/Work/apps/Cedewise/cedewise 2/prisma/schema.prisma",
+    "sourceFilePath": "/Users/johnmthembu/Documents/Work/2025/apps/Cedewise/cedewise 2 3/prisma/schema.prisma",
     "isCustomOutput": true
   },
   "relativeEnvPaths": {
