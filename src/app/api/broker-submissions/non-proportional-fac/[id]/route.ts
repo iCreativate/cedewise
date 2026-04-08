@@ -1,30 +1,53 @@
 import { NextResponse } from 'next/server'
 
-// Mirrors the broker Non‑Proportional Facultative Reinsurance mock shape.
+// Mirrors the broker Non‑Proportional Facultative Reinsurance form shape.
 // This gives the reinsurer "Main Submission" tab a reliable fallback on refresh/direct navigation.
 const NON_PROP_FAC_SUBMISSIONS = [
   {
     id: 1,
-    cedingCompany: 'Santam',
-    policyReferenceNumber: 'NPR-2024-001',
-    brokerName: 'AON',
-    insured: 'XYZ Corporation',
+    // Broker form fields (src/app/non-life/broker/facultative/non-proportional/page.tsx)
+    policyReferenceNumber: 'NON-456789-1234',
+    name: '',
+    company: 'Marsh Insurance Brokers',
+    insurance_company: 'Old Mutual',
+    insured: 'Commercial Tower',
     classOfBusiness: 'Property',
-    businessOccupation: 'Manufacturing',
-    riskCountry: 'South Africa',
-    excessLayer: 'R 100,000,000 xs R 50,000,000',
-    status: 'Pending Review',
-    sumInsured: 'R 850,000,000',
-    currency: 'ZAR',
+    businessOccupation: 'Commercial Real Estate',
+    riskCountry: 'Botswana',
+    quoteRequiredPercentage: '75%',
+    reinsurerOfferPercentage: '25%',
+    remainingShare: '50%',
+    reinsuranceLayer: 'R 1,200,000,000',
+    primaryLayer: 'R 600,000,000',
+    physicalDamage: 'R 1,200,000,000',
+    businessInterruption: 'R 600,000,000',
+    sumInsured: 'R 1,800,000,000',
+    commission: '0',
+    brokerage: '0',
+    overriderCommission: '0',
+    premiumAmount: 'R 36,000,000',
+    premiumAmountAtReinsurer: 'R 36,000,000',
+    premiumRate: '2.00',
+    reinsurer_rating: 'A+',
+    currency: 'USD',
     startDate: '2024-01-01',
     endDate: '2024-12-31',
-    premiumRate: '0.5',
-    premiumAmount: 'R 4,250,000',
-    commission: '5',
-    brokerage: '2.5',
-    overriderCommission: '1',
-    description: 'Property risk for manufacturing facility in Johannesburg',
-    documents: ['Risk Survey.pdf', 'Financials.xlsx'],
+    description: 'Excess of loss submission for a commercial property tower.',
+    documentTypes: {
+      lossHistory: true,
+      surveyReport: true,
+      rationalFireDesign: false,
+      complianceLetter: false,
+      sumInsuredCalculations: true,
+    },
+    documents: ['Loss History', 'Survey Report', 'Sum Insured Calculations'],
+    uploadedFiles: [{ name: 'Loss History.pdf' }, { name: 'Survey Report.pdf' }],
+
+    // Backwards-compat fields used in earlier UI versions
+    cedingCompany: 'Old Mutual',
+    brokerName: 'Marsh',
+    excessLayer: 'R 1,200,000,000 xs R 600,000,000',
+    status: 'Pending Review',
   },
 ] as const
 

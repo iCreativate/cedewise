@@ -1339,15 +1339,6 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
                             : 'text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300'
                         }`
                       }>
-                        Main Submission
-                      </Tab>
-                      <Tab className={({ selected }) =>
-                        `px-6 py-3 text-sm font-medium border-b-2 ${
-                          selected
-                            ? 'text-blue-600 border-blue-600'
-                            : 'text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300'
-                        }`
-                      }>
                         My Quote
                       </Tab>
                       <Tab className={({ selected }) =>
@@ -1380,305 +1371,6 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
                     </Tab.List>
 
                     <Tab.Panels>
-                      {/* Submission Details Panel */}
-                      <Tab.Panel className="p-6">
-                        <div className="bg-white rounded-lg">
-                          <div className="flex justify-between items-center mb-8">
-                            <div>
-                              <h3 className="text-xl font-semibold text-gray-900">Submission Information</h3>
-                              <p className="mt-1 text-sm text-gray-500">Review and manage submission details</p>
-                            </div>
-                            <div className="flex space-x-3">
-                              <button
-                                type="button"
-                                onClick={() => setSelectedTab(1)}
-                                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                              >
-                                Quote
-                              </button>
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-1 gap-8">
-                            {/* Basic Information */}
-                            <div className="bg-gray-50 rounded-lg p-6">
-                              <h4 className="text-base font-medium text-gray-900 mb-4">Basic Information</h4>
-                              <div className="grid grid-cols-3 gap-6">
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-1">Ceding Company</label>
-                                  <input
-                                    type="text"
-                                    defaultValue="Santam"
-                                    disabled
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-500 sm:text-sm"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-1">Insured</label>
-                                  <input
-                                    type="text"
-                                    defaultValue="Vulcan"
-                                    disabled
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-500 sm:text-sm"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-1">Policy Reference Number</label>
-                                  <input
-                                    type="text"
-                                    defaultValue="NPR-456789-1234"
-                                    disabled
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-500 sm:text-sm"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-1">Broker</label>
-                                  <input
-                                    type="text"
-                                    defaultValue="AON"
-                                    disabled
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-500 sm:text-sm"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-1">Class of Business</label>
-                                  <input
-                                    type="text"
-                                    defaultValue="Property"
-                                    disabled
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-500 sm:text-sm"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-1">Business Occupation</label>
-                                  <input
-                                    type="text"
-                                    defaultValue="Mining"
-                                    disabled
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-500 sm:text-sm"
-                                  />
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Risk Details */}
-                            <div className="bg-gray-50 rounded-lg p-6">
-                              <h4 className="text-base font-medium text-gray-900 mb-4">Risk Details</h4>
-                              <div className="grid grid-cols-3 gap-6">
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-1">Risk Country</label>
-                                  <input
-                                    type="text"
-                                    defaultValue="Mozambique"
-                                    disabled
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-500 sm:text-sm"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-1">Quote Required (%)</label>
-                                  <input
-                                    type="text"
-                                    defaultValue="75"
-                                    disabled
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-500 sm:text-sm"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-1">Physical Damage</label>
-                                  <input
-                                    type="text"
-                                    defaultValue="R 120,000,000"
-                                    disabled
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-500 sm:text-sm"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-1">Business Interruption</label>
-                                  <input
-                                    type="text"
-                                    defaultValue="R 47,000,000"
-                                    disabled
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-500 sm:text-sm"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-1">Sum Insured</label>
-                                  <input
-                                    type="text"
-                                    defaultValue="R 167,000,000"
-                                    disabled
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-500 sm:text-sm"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-1">Premium Rate (%)</label>
-                                  <input
-                                    type="text"
-                                    defaultValue="2.5"
-                                    disabled
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-500 sm:text-sm"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-1">Premium Amount</label>
-                                  <input
-                                    type="text"
-                                    defaultValue="R 4,175,000"
-                                    disabled
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-500 sm:text-sm"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
-                                  <input
-                                    type="text"
-                                    defaultValue="01 Jan 2024"
-                                    disabled
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-500 sm:text-sm"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
-                                  <input
-                                    type="text"
-                                    defaultValue="31 Dec 2024"
-                                    disabled
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-500 sm:text-sm"
-                                  />
-                                </div>
-                              </div>
-                              <div className="mt-4">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                                <textarea
-                                  defaultValue="Mining facility with state-of-the-art equipment and safety measures."
-                                  disabled
-                                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-500 sm:text-sm"
-                                  rows={3}
-                                />
-                              </div>
-                            </div>
-
-                            {/* Financial Information */}
-                            <div className="bg-gray-50 rounded-lg p-6">
-                              <h4 className="text-base font-medium text-gray-900 mb-4">Financial Information</h4>
-                              <div className="grid grid-cols-3 gap-6">
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-1">Physical Damage</label>
-                                  <input
-                                    type="text"
-                                    defaultValue="R 1,200,000,000"
-                                    disabled
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-500 sm:text-sm"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-1">Business Interruption</label>
-                                  <input
-                                    type="text"
-                                    defaultValue="R 470,000,000"
-                                    disabled
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-500 sm:text-sm"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-1">Sum Insured</label>
-                                  <input
-                                    type="text"
-                                    defaultValue="R 1,670,000,000"
-                                    disabled
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-500 sm:text-sm"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-1">Remaining Share (%)</label>
-                                  <input
-                                    type="text"
-                                    defaultValue="50"
-                                    disabled
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-500 sm:text-sm"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-1">Premium Rate (%)</label>
-                                  <input
-                                    type="text"
-                                    defaultValue="2.5"
-                                    disabled
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-500 sm:text-sm"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-1">Premium Amount</label>
-                                  <input
-                                    type="text"
-                                    defaultValue="R 41,750,000"
-                                    disabled
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-500 sm:text-sm"
-                                  />
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Deductions & Dates */}
-                            <div className="bg-gray-50 rounded-lg p-6">
-                              <h4 className="text-base font-medium text-gray-900 mb-4">Deductions & Dates</h4>
-                              <div className="grid grid-cols-3 gap-6">
-                                <div className="col-span-3">
-                                  <label className="block text-sm font-medium text-gray-700 mb-1">Deductions (%)</label>
-                                  <input
-                                    type="text"
-                                    defaultValue="Total: 30.00%"
-                                    disabled
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-500 sm:text-sm"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
-                                  <input
-                                    type="text"
-                                    defaultValue="01 Jan 2024"
-                                    disabled
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-500 sm:text-sm"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
-                                  <input
-                                    type="text"
-                                    defaultValue="31 Dec 2024"
-                                    disabled
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-500 sm:text-sm"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-1">Loss Ratio (%)</label>
-                                  <input
-                                    type="text"
-                                    defaultValue="65"
-                                    disabled
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-500 sm:text-sm"
-                                  />
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Description */}
-                            <div className="bg-gray-50 rounded-lg p-6">
-                              <h4 className="text-base font-medium text-gray-900 mb-4">Description</h4>
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                                <textarea
-                                  defaultValue="Mining facility with state-of-the-art equipment and safety measures."
-                                  disabled
-                                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-500 sm:text-sm"
-                                  rows={4}
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </Tab.Panel>
-
                       {/* Main Submission Panel (pulled from broker Non-Proportional FAC form) */}
                       <Tab.Panel className="p-6">
                         <div className="bg-white rounded-lg">
@@ -1686,6 +1378,15 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
                             <div>
                               <h3 className="text-xl font-semibold text-gray-900">Main Submission</h3>
                               <p className="mt-1 text-sm text-gray-500">Pulled from broker Non-Proportional Facultative Reinsurance form</p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <button
+                                type="button"
+                                onClick={() => setSelectedTab(1)}
+                                className="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                              >
+                                Quote
+                              </button>
                             </div>
                           </div>
 
@@ -1696,51 +1397,289 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
                           ) : (
                             <div className="grid grid-cols-1 gap-6">
                               <div className="bg-gray-50 rounded-lg p-6">
-                                <h4 className="text-base font-medium text-gray-900 mb-4">Key details</h4>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <h4 className="text-base font-medium text-gray-900 mb-4">Submission Details</h4>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                   <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Ceding Company</label>
-                                    <input value={brokerNonPropSubmission.cedingCompany ?? ''} readOnly className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm" />
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Policy Reference Number</label>
+                                    <input
+                                      value={brokerNonPropSubmission.policyReferenceNumber ?? brokerNonPropSubmission.policyNo ?? ''}
+                                      readOnly
+                                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm"
+                                    />
                                   </div>
+
                                   <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Insured</label>
-                                    <input value={brokerNonPropSubmission.insured ?? ''} readOnly className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm" />
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Reinsurer Rating</label>
+                                    <input
+                                      value={brokerNonPropSubmission.reinsurer_rating ?? brokerNonPropSubmission.reinsurerRating ?? ''}
+                                      readOnly
+                                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm"
+                                    />
                                   </div>
+
+                                  <div className="md:col-span-2">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Choose Reinsurer(s)</label>
+                                    <input
+                                      value={
+                                        Array.isArray(brokerNonPropSubmission.selectedReinsurers)
+                                          ? brokerNonPropSubmission.selectedReinsurers
+                                              .map((r: any) => r?.name ?? r?.label ?? r?.company ?? r)
+                                              .filter(Boolean)
+                                              .join(', ')
+                                          : brokerNonPropSubmission.reinsurers ??
+                                            brokerNonPropSubmission.reinsurer ??
+                                            brokerNonPropSubmission.reinsurerName ??
+                                            ''
+                                      }
+                                      readOnly
+                                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm"
+                                    />
+                                  </div>
+
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                                    <input
+                                      value={brokerNonPropSubmission.country ?? brokerNonPropSubmission.riskCountry ?? ''}
+                                      readOnly
+                                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm"
+                                    />
+                                  </div>
+
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Currency</label>
+                                    <input
+                                      value={brokerNonPropSubmission.currency ?? 'USD'}
+                                      readOnly
+                                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm"
+                                    />
+                                  </div>
+
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Broker Company Name</label>
+                                    <input
+                                      value={brokerNonPropSubmission.company ?? brokerNonPropSubmission.cedingCompany ?? brokerNonPropSubmission.brokerCompany ?? ''}
+                                      readOnly
+                                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm"
+                                    />
+                                  </div>
+
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Insurance Company</label>
+                                    <input
+                                      value={brokerNonPropSubmission.insurance_company ?? brokerNonPropSubmission.insuranceCompany ?? ''}
+                                      readOnly
+                                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm"
+                                    />
+                                  </div>
+
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Insured Name</label>
+                                    <input
+                                      value={brokerNonPropSubmission.insured ?? ''}
+                                      readOnly
+                                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm"
+                                    />
+                                  </div>
+
                                   <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Broker</label>
-                                    <input value={brokerNonPropSubmission.brokerName ?? brokerNonPropSubmission.broker ?? ''} readOnly className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm" />
+                                    <input
+                                      value={brokerNonPropSubmission.brokerName ?? brokerNonPropSubmission.broker ?? ''}
+                                      readOnly
+                                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm"
+                                    />
                                   </div>
-                                  <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Policy Reference</label>
-                                    <input value={brokerNonPropSubmission.policyReferenceNumber ?? brokerNonPropSubmission.policyNo ?? ''} readOnly className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm" />
-                                  </div>
+
                                   <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Class of Business</label>
-                                    <input value={brokerNonPropSubmission.classOfBusiness ?? ''} readOnly className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm" />
+                                    <input
+                                      value={brokerNonPropSubmission.classOfBusiness ?? ''}
+                                      readOnly
+                                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm"
+                                    />
                                   </div>
+
                                   <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Business Occupation</label>
-                                    <input value={brokerNonPropSubmission.businessOccupation ?? ''} readOnly className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm" />
+                                    <input
+                                      value={brokerNonPropSubmission.businessOccupation ?? ''}
+                                      readOnly
+                                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm"
+                                    />
                                   </div>
+
                                   <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Risk Country</label>
-                                    <input value={brokerNonPropSubmission.riskCountry ?? ''} readOnly className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm" />
+                                    <input
+                                      value={brokerNonPropSubmission.riskCountry ?? ''}
+                                      readOnly
+                                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm"
+                                    />
                                   </div>
-                                  <div className="md:col-span-2">
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Excess Layer</label>
-                                    <input value={brokerNonPropSubmission.excessLayer ?? ''} readOnly className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm" />
-                                  </div>
+
                                   <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Sum Insured</label>
-                                    <input value={brokerNonPropSubmission.sumInsured ?? ''} readOnly className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm" />
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Quote Required Percentage</label>
+                                    <input
+                                      value={brokerNonPropSubmission.quoteRequiredPercentage ?? ''}
+                                      readOnly
+                                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm"
+                                    />
                                   </div>
+
                                   <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Premium Rate</label>
-                                    <input value={brokerNonPropSubmission.premiumRate ?? ''} readOnly className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm" />
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Reinsurer Offer Percentage</label>
+                                    <input
+                                      value={brokerNonPropSubmission.reinsurerOfferPercentage ?? ''}
+                                      readOnly
+                                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm"
+                                    />
                                   </div>
+
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Remaining Share (%)</label>
+                                    <input
+                                      value={brokerNonPropSubmission.remainingShare ?? ''}
+                                      readOnly
+                                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm"
+                                    />
+                                  </div>
+
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Reinsurance Layer</label>
+                                    <input
+                                      value={brokerNonPropSubmission.reinsuranceLayer ?? ''}
+                                      readOnly
+                                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm"
+                                    />
+                                  </div>
+
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">In excess of</label>
+                                    <input
+                                      value={brokerNonPropSubmission.primaryLayer ?? brokerNonPropSubmission.excessLayer ?? ''}
+                                      readOnly
+                                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm"
+                                    />
+                                  </div>
+
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Primary Layer</label>
+                                    <input
+                                      value={brokerNonPropSubmission.primaryLayer ?? ''}
+                                      readOnly
+                                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm"
+                                    />
+                                  </div>
+
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Physical Damage</label>
+                                    <input
+                                      value={brokerNonPropSubmission.physicalDamage ?? ''}
+                                      readOnly
+                                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm"
+                                    />
+                                  </div>
+
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Business Interruption - Loss of Profits</label>
+                                    <input
+                                      value={brokerNonPropSubmission.businessInterruption ?? ''}
+                                      readOnly
+                                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm"
+                                    />
+                                  </div>
+
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Sum Insured (Total)</label>
+                                    <input
+                                      value={brokerNonPropSubmission.sumInsured ?? ''}
+                                      readOnly
+                                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm"
+                                    />
+                                  </div>
+
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Premium Rate (%)</label>
+                                    <input
+                                      value={brokerNonPropSubmission.premiumRate ?? ''}
+                                      readOnly
+                                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm"
+                                    />
+                                  </div>
+
                                   <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Premium Amount</label>
-                                    <input value={brokerNonPropSubmission.premiumAmount ?? ''} readOnly className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm" />
+                                    <input
+                                      value={brokerNonPropSubmission.premiumAmount ?? ''}
+                                      readOnly
+                                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm"
+                                    />
+                                  </div>
+
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Premium Amount at Reinsurer</label>
+                                    <input
+                                      value={
+                                        brokerNonPropSubmission.premiumAmountAtReinsurer ??
+                                        brokerNonPropSubmission.premiumAmountReinsurer ??
+                                        brokerNonPropSubmission.reinsurerPremiumAmount ??
+                                        ''
+                                      }
+                                      readOnly
+                                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm"
+                                    />
+                                  </div>
+
+                                  <div className="md:col-span-2">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Deductions (%)</label>
+                                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                      <input
+                                        value={brokerNonPropSubmission.commission ?? ''}
+                                        readOnly
+                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm"
+                                        aria-label="Commission"
+                                      />
+                                      <input
+                                        value={brokerNonPropSubmission.brokerage ?? ''}
+                                        readOnly
+                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm"
+                                        aria-label="Brokerage"
+                                      />
+                                      <input
+                                        value={brokerNonPropSubmission.overriderCommission ?? ''}
+                                        readOnly
+                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm"
+                                        aria-label="Overrider commission"
+                                      />
+                                      <input
+                                        value={brokerNonPropSubmission.totalDeductions ?? ''}
+                                        readOnly
+                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm"
+                                        aria-label="Total deductions"
+                                      />
+                                    </div>
+                                    <div className="mt-2 text-xs text-gray-600">
+                                      Commission • Brokerage • Overrider • <span className="font-medium">Total Deduction</span>
+                                    </div>
+                                  </div>
+
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                                    <input
+                                      value={brokerNonPropSubmission.startDate ?? ''}
+                                      readOnly
+                                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm"
+                                    />
+                                  </div>
+
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                                    <input
+                                      value={brokerNonPropSubmission.endDate ?? ''}
+                                      readOnly
+                                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm"
+                                    />
                                   </div>
                                 </div>
                               </div>
@@ -1748,6 +1687,51 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
                               <div className="bg-gray-50 rounded-lg p-6">
                                 <h4 className="text-base font-medium text-gray-900 mb-4">Description</h4>
                                 <textarea value={brokerNonPropSubmission.description ?? ''} readOnly rows={3} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm" />
+                              </div>
+
+                              <div className="bg-gray-50 rounded-lg p-6">
+                                <h4 className="text-base font-medium text-gray-900 mb-4">Documents</h4>
+                                <div className="space-y-3">
+                                  {[
+                                    { key: 'lossHistory', label: 'Loss History' },
+                                    { key: 'surveyReport', label: 'Survey Report' },
+                                    { key: 'rationalFireDesign', label: 'Rational Fire Design' },
+                                    { key: 'complianceLetter', label: 'Compliance Letter' },
+                                    { key: 'sumInsuredCalculations', label: 'Sum Insured Calculations' },
+                                  ].map((d) => {
+                                    const fromBoolean =
+                                      brokerNonPropSubmission.documentTypes?.[d.key] === true ||
+                                      brokerNonPropSubmission.requiredDocuments?.[d.key] === true
+                                    const fromList = Array.isArray(brokerNonPropSubmission.documents)
+                                      ? brokerNonPropSubmission.documents.some((x: any) =>
+                                          String(x ?? '')
+                                            .toLowerCase()
+                                            .includes(d.label.toLowerCase())
+                                        )
+                                      : false
+                                    const checked = Boolean(fromBoolean || fromList)
+
+                                    return (
+                                      <label key={d.key} className="flex items-center gap-2 text-sm text-gray-700">
+                                        <input type="checkbox" checked={checked} readOnly className="h-4 w-4" />
+                                        <span>{d.label}</span>
+                                      </label>
+                                    )
+                                  })}
+                                </div>
+
+                                <div className="mt-6">
+                                  <div className="text-sm font-medium text-gray-900 mb-2">Uploaded Supporting Documents</div>
+                                  {Array.isArray(brokerNonPropSubmission.uploadedFiles) && brokerNonPropSubmission.uploadedFiles.length > 0 ? (
+                                    <ul className="list-disc pl-5 text-sm text-gray-700 space-y-1">
+                                      {brokerNonPropSubmission.uploadedFiles.map((f: any, idx: number) => (
+                                        <li key={idx}>{f?.name ?? f?.filename ?? String(f)}</li>
+                                      ))}
+                                    </ul>
+                                  ) : (
+                                    <div className="text-sm text-gray-600">No supporting documents uploaded.</div>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           )}

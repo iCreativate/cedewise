@@ -4,6 +4,16 @@ import { useEffect } from 'react'
 
 export default function ServiceWorkerLoader() {
   useEffect(() => {
+    // Service worker caching breaks Next dev HMR/chunking frequently.
+    if (process.env.NODE_ENV !== 'production') {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations()
+          .then((regs) => Promise.all(regs.map((r) => r.unregister())))
+          .catch(() => {});
+      }
+      return;
+    }
+
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js')
