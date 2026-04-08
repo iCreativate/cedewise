@@ -1,8 +1,8 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import RoleGuard from '@/components/RoleGuard'
-import { ReinsurerDashboard } from './dashboard'
+import { ReinsurerDashboard, type BoundRisk } from './dashboard'
 import ExcelJS from 'exceljs'
 
 // Helper function to export data to Excel
@@ -168,6 +168,14 @@ const nonProportionalFacData = [
 function ReinsurerPage(): JSX.Element {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('proportional');
+  const [boundRisks, setBoundRisks] = useState<BoundRisk[]>([]);
+
+  useEffect(() => {
+    fetch('/api/risks?status=BOUND')
+      .then((res) => res.ok ? res.json() : [])
+      .then((data: BoundRisk[]) => setBoundRisks(Array.isArray(data) ? data : []))
+      .catch(() => setBoundRisks([]));
+  }, []);
 
   // Handle export function
   const handleExport = () => {
@@ -183,6 +191,7 @@ function ReinsurerPage(): JSX.Element {
       facultativeData={facultativeData}
       proportionalFacData={proportionalFacData}
       nonProportionalFacData={nonProportionalFacData}
+      boundRisks={boundRisks}
       searchQuery={searchQuery}
       setSearchQuery={setSearchQuery}
       activeTab={activeTab}

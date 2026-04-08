@@ -1,15 +1,72 @@
 'use client'
 
-import React from 'react'
-import { ArrowUpIcon, ArrowDownIcon } from '@heroicons/react/24/outline'
+import React, { useState, useEffect } from 'react'
+import { ArrowUpIcon, ArrowDownIcon, CheckCircleIcon } from '@heroicons/react/24/outline'
 import { formatLargeCurrency } from '@/utils/currency'
 import RoleGuard from '@/components/RoleGuard'
 
+interface BoundRisk {
+  id: string
+  title: string
+  description: string
+  status: string
+  premium: number
+  coverage: string
+  submitter?: { name: string; email: string; company?: string }
+  createdAt: string
+  updatedAt: string
+}
+
 function InsurerPage() {
+  const [boundRisks, setBoundRisks] = useState<BoundRisk[]>([])
+
+  useEffect(() => {
+    fetch('/api/risks?status=BOUND')
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data: BoundRisk[]) => setBoundRisks(Array.isArray(data) ? data : []))
+      .catch(() => setBoundRisks([]))
+  }, [])
+
   return (
     <div className="p-6">
       <h1 className="text-2xl font-semibold text-gray-900 mb-6">Insurer Dashboard</h1>
       
+      {/* Bound risks from brokers */}
+      {boundRisks.length > 0 && (
+        <div className="bg-white rounded-xl shadow p-6 mb-8">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+            <CheckCircleIcon className="h-5 w-5 text-green-500 mr-2" />
+            Newly bound risks
+          </h3>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Risk</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Coverage</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Premium</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Submitted by</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Bound</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {boundRisks.map((risk) => (
+                  <tr key={risk.id}>
+                    <td className="px-4 py-3 text-sm font-medium text-gray-900">{risk.title}</td>
+                    <td className="px-4 py-3 text-sm text-gray-500">{risk.coverage}</td>
+                    <td className="px-4 py-3 text-sm text-gray-500">{formatLargeCurrency(risk.premium)}</td>
+                    <td className="px-4 py-3 text-sm text-gray-500">{risk.submitter?.name ?? risk.submitter?.company ?? '—'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-500">
+                      {new Date(risk.updatedAt).toLocaleDateString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
         <div className="bg-white p-4 rounded-lg shadow">

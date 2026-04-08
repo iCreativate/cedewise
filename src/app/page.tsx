@@ -134,8 +134,13 @@ export default function Home() {
     setIsVisible(true)
   }, [])
 
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.push('/dashboard')
+    }
+  }, [isAuthenticated, router])
+
   if (isAuthenticated) {
-    router.push('/dashboard')
     return null
   }
 

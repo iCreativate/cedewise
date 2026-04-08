@@ -26,14 +26,24 @@ export async function POST(request: Request) {
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url)
+    const status = searchParams.get('status')
+
+    const where = status
+      ? { status: status as 'DRAFT' | 'SUBMITTED' | 'UNDER_REVIEW' | 'ACCEPTED' | 'REJECTED' | 'BOUND' }
+      : {}
+
     const risks = await prisma.risk.findMany({
+      where,
+      orderBy: { updatedAt: 'desc' },
       include: {
         submitter: {
           select: {
             name: true,
             email: true,
+            company: true,
           },
         },
       },

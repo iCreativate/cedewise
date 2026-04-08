@@ -1,8 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Tab } from '@headlessui/react';
 import { PaperAirplaneIcon, DocumentArrowDownIcon, DocumentIcon } from '@heroicons/react/24/outline';
+import { useParams } from 'next/navigation';
+import Chat from '@/components/Chat';
 
 interface Message {
   id: number;
@@ -45,37 +47,28 @@ interface SubmissionFormProps {
 }
 
 export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormProps) {
+  const params = useParams();
+  const routeId = (params as any)?.id ? String((params as any).id) : null;
   const [selectedTab, setSelectedTab] = useState(0);
   const [showDetails, setShowDetails] = useState(false);
   const [isProposingNewValues, setIsProposingNewValues] = useState(false);
-  const [newMessage, setNewMessage] = useState('');
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: 1,
-      text: "Hello, I have some questions about this submission.",
-      timestamp: "08:33",
-      sender: "user"
-    },
-    {
-      id: 2,
-      text: "Sure, what would you like to know?",
-      timestamp: "12:33",
-      sender: "broker"
-    }
-  ]);
-
-  const handleSendMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newMessage.trim()) return;
-
-    setMessages(prev => [...prev, {
-      id: prev.length + 1,
-      text: newMessage,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      sender: 'user'
-    }]);
-    setNewMessage('');
-  };
+  const [showQuoteDetails, setShowQuoteDetails] = useState(false);
+  const [brokerNonPropSubmission, setBrokerNonPropSubmission] = useState<any>(null);
+  // Quote inputs (Non-Proportional)
+  const [quotePremiumAmount, setQuotePremiumAmount] = useState<string>('');
+  const [quotePremiumRate, setQuotePremiumRate] = useState<string>('');
+  const [shareOffer, setShareOffer] = useState<string>('');
+  const [layer, setLayer] = useState<string>('');
+  const [excessOf, setExcessOf] = useState<string>('');
+  const [lastEdited, setLastEdited] = useState<'premium' | 'rate' | null>(null);
+  const [deductionsPreset, setDeductionsPreset] = useState<'option1' | 'option2'>('option1');
+  const [commission, setCommission] = useState<string>('20');
+  const [overrider, setOverrider] = useState<string>('2.5');
+  const [brokerage, setBrokerage] = useState<string>('2.5');
+  const [copiedKey, setCopiedKey] = useState<'premium' | 'rate' | 'premium100' | null>(null);
+  const chatSubmissionId = String(
+    brokerNonPropSubmission?.policyReferenceNumber ?? routeId ?? 'unknown'
+  );
 
   const handleProposeNewValues = () => {
     setIsProposingNewValues(true);
@@ -85,6 +78,235 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
   const handleShowDetails = () => {
     setShowDetails(!showDetails);
   };
+
+  const formatCurrencySpaces = (value: string) => {
+    const digits = String(value).replace(/[^0-9]/g, '');
+    if (!digits) return '';
+    return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  };
+
+  const formatMoneySpaces = (value: string, decimals: number = 2) => {
+    const raw = String(value).replace(/[^0-9.]/g, '');
+    if (!raw) return '';
+    const [intPartRaw, fracRaw = ''] = raw.split('.');
+    const intDigits = (intPartRaw || '').replace(/^0+(?=\d)/, '') || '0';
+    const intSpaced = intDigits.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+    const frac = fracRaw.slice(0, decimals).padEnd(decimals, '0');
+    return `${intSpaced}.${frac}`;
+  };
+
+  const formatMoneySpacesLoose = (value: string, maxDecimals: number = 6) => {
+    const raw = String(value).replace(/[^0-9.]/g, '');
+    if (!raw) return '';
+    const [intPartRaw, fracRaw = ''] = raw.split('.');
+    const intDigits = (intPartRaw || '').replace(/^0+(?=\d)/, '') || '0';
+    const intSpaced = intDigits.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+    const frac = fracRaw.slice(0, maxDecimals);
+    return frac.length ? `${intSpaced}.${frac}` : intSpaced;
+  };
+
+  const normalizeMoney = (value: string) => {
+    const n = parseNumber(value);
+    if (!n) return '';
+    return formatMoneySpaces(n.toFixed(2), 2);
+  };
+
+  const normalizeMoneyMax = (value: string, maxDecimals: number = 6) => {
+    const n = parseNumber(value);
+    if (!n) return '';
+    const fixed = n.toFixed(maxDecimals);
+    const trimmed = fixed.replace(/\.?0+$/, '');
+    return formatMoneySpacesLoose(trimmed, maxDecimals);
+  };
+
+  const applyBrokerValuesToQuote = () => {
+    setIsProposingNewValues(false);
+    setShowQuoteDetails(false);
+    setLastEdited(null);
+
+    setShareOffer(String(data?.quoteRequiredPercentage ?? ''));
+    setQuotePremiumAmount(normalizeMoney(String(data?.premiumAmount ?? '')));
+    setQuotePremiumRate(String(data?.premiumRate ?? ''));
+
+    // keep Layer/Excess as-is if user typed; otherwise default from Main Submission
+    if (!layer) setLayer(formatCurrencySpaces(String(brokerNonPropSubmission?.sumInsured ?? '')));
+    if (!excessOf) setExcessOf(formatCurrencySpaces(String(brokerNonPropSubmission?.excessLayer ?? '')));
+
+    // Deduction presets from screenshot
+    setDeductionsPreset('option1');
+  };
+
+  const enableProposeNewValues = () => {
+    setIsProposingNewValues(true);
+    // Prefill once (if empty) so user can adjust quickly
+    if (!shareOffer) setShareOffer(String(data?.quoteRequiredPercentage ?? ''));
+    if (!quotePremiumAmount) setQuotePremiumAmount(normalizeMoney(String(data?.premiumAmount ?? '')));
+    if (!quotePremiumRate) setQuotePremiumRate(String(data?.premiumRate ?? ''));
+    if (!layer) setLayer(formatCurrencySpaces(String(brokerNonPropSubmission?.sumInsured ?? '')));
+    if (!excessOf) setExcessOf(formatCurrencySpaces(String(brokerNonPropSubmission?.excessLayer ?? '')));
+  };
+
+  const copyText = async (key: 'premium' | 'rate' | 'premium100', text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedKey(key);
+      window.setTimeout(() => setCopiedKey(null), 900);
+    } catch {
+      // best-effort; ignore if clipboard blocked
+    }
+  };
+
+  const parseNumber = (value: string): number => {
+    const s0 = String(value ?? '').trim();
+    if (!s0) return 0;
+
+    // Support comma decimals (e.g. "0,09") while also allowing thousand separators/spaces.
+    // If the string contains a comma but no dot, treat comma as the decimal separator.
+    const normalized = (s0.includes(',') && !s0.includes('.')) ? s0.replace(/,/g, '.') : s0;
+
+    const cleaned = normalized.replace(/[^0-9.-]+/g, '');
+    const n = parseFloat(cleaned);
+    return Number.isFinite(n) ? n : 0;
+  };
+
+  // Pull broker submission from sessionStorage (set by broker non-prop FAC list "View submission")
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem('selectedSubmission');
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      setBrokerNonPropSubmission(parsed);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  // If sessionStorage is empty (refresh/direct navigation), fall back to fetching by route id
+  useEffect(() => {
+    if (brokerNonPropSubmission) return;
+    if (!routeId) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/broker-submissions/non-proportional-fac/${encodeURIComponent(routeId)}`, {
+          method: 'GET',
+        });
+        if (!res.ok) return;
+        const json = await res.json();
+        if (cancelled) return;
+        if (json && typeof json === 'object') {
+          setBrokerNonPropSubmission(json);
+        }
+      } catch {
+        // ignore
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [routeId, brokerNonPropSubmission]);
+
+  // My Quote defaults: Layer = Sum Insured, In excess = Excess Layer (from Main Submission)
+  useEffect(() => {
+    if (!brokerNonPropSubmission) return;
+    if (!layer && brokerNonPropSubmission.sumInsured) {
+      setLayer(formatCurrencySpaces(String(brokerNonPropSubmission.sumInsured)));
+    }
+    if (!excessOf && brokerNonPropSubmission.excessLayer) {
+      setExcessOf(formatCurrencySpaces(String(brokerNonPropSubmission.excessLayer)));
+    }
+    // only prefill when empty, so user can still edit freely
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [brokerNonPropSubmission]);
+
+  const layerAmount = useMemo(() => {
+    // Prefer user-entered layer amount; fallback to sumInsured.
+    const manual = parseNumber(layer);
+    return manual || (data?.sumInsured ?? 0);
+  }, [data?.sumInsured, layer]);
+
+  const shareOfferPct = useMemo(() => {
+    const pct = parseNumber(shareOffer);
+    return pct > 0 ? pct : 0;
+  }, [shareOffer]);
+
+  const premiumNumber = useMemo(() => parseNumber(quotePremiumAmount), [quotePremiumAmount]);
+  const rateNumber = useMemo(() => parseNumber(quotePremiumRate), [quotePremiumRate]);
+
+  const calcPremiumFromRate = useMemo(() => {
+    if (!layerAmount || !rateNumber) return 0;
+    return (layerAmount * rateNumber) / 100;
+  }, [layerAmount, rateNumber]);
+
+  const premiumAtShareOffer = useMemo(() => {
+    if (!premiumNumber || !shareOfferPct) return 0;
+    return premiumNumber * (shareOfferPct / 100);
+  }, [premiumNumber, shareOfferPct]);
+
+  const premiumAtShareOfferFromRate = useMemo(() => {
+    if (!calcPremiumFromRate || !shareOfferPct) return 0;
+    return calcPremiumFromRate * (shareOfferPct / 100);
+  }, [calcPremiumFromRate, shareOfferPct]);
+
+  const calcRateFromPremium = useMemo(() => {
+    if (!layerAmount || !premiumNumber) return 0;
+    return (premiumNumber / layerAmount) * 100;
+  }, [layerAmount, premiumNumber]);
+
+  const calcPremiumRateAtShareOffer = useMemo(() => {
+    // (Premium amount / Layer Amount) * 100 * Share offer
+    if (!layerAmount || !premiumNumber || !shareOfferPct) return 0;
+    return ((premiumNumber / layerAmount) * 100) * (shareOfferPct / 100);
+  }, [layerAmount, premiumNumber, shareOfferPct]);
+
+  const calcPremium100 = useMemo(() => {
+    // (Premium amount / Layer Amount) * 100  (as displayed in screenshot)
+    if (!layerAmount || !premiumNumber) return 0;
+    return (premiumNumber / layerAmount) * 100;
+  }, [layerAmount, premiumNumber]);
+
+  const totalDeductions = useMemo(() => {
+    return (parseNumber(commission) + parseNumber(overrider) + parseNumber(brokerage)).toFixed(2);
+  }, [commission, overrider, brokerage]);
+
+  useEffect(() => {
+    if (deductionsPreset === 'option1') {
+      setCommission('20');
+      setOverrider('2.5');
+      setBrokerage('2.5');
+      return;
+    }
+    // Option 2: FOC (Free of Commission)
+    setCommission('0');
+    setOverrider('0');
+    setBrokerage('0');
+  }, [deductionsPreset]);
+
+  // Auto-calc (Premium <-> Rate) for Non-Proportional quote
+  useEffect(() => {
+    if (!layerAmount) return;
+
+    if (lastEdited === 'premium') {
+      if (!quotePremiumRate && quotePremiumAmount) {
+        const prem = parseNumber(quotePremiumAmount);
+        if (!prem) return;
+        const rate = (prem / layerAmount) * 100;
+        setQuotePremiumRate(rate.toFixed(2));
+      }
+      return;
+    }
+
+    if (lastEdited === 'rate') {
+      if (!quotePremiumAmount && quotePremiumRate) {
+        const rate = parseNumber(quotePremiumRate);
+        if (!rate) return;
+        const prem = (layerAmount * rate) / 100;
+        setQuotePremiumAmount(normalizeMoneyMax(prem.toString(), 6));
+      }
+    }
+  }, [layerAmount, lastEdited, quotePremiumAmount, quotePremiumRate]);
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -521,136 +743,260 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
 
                       {/* My Quote Panel */}
                       <Tab.Panel className="p-6">
-                        <div className="bg-white rounded-lg">
-                          <div className="flex justify-between items-center mb-8">
-                            <div>
-                              <h3 className="text-xl font-semibold text-gray-900">Munich Re's Quote</h3>
-                              <p className="mt-1 text-sm text-gray-500">Provide your proposal for this non-proportional reinsurance submission</p>
-                            </div>
-                            <div className="flex space-x-3">
-                              <button
-                                type="button"
-                                className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                              >
-                                Save Draft
-                              </button>
-                              <button
-                                type="button"
-                                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                              >
-                                Submit Quote
-                              </button>
-                            </div>
-                          </div>
+                        <div className="space-y-6">
+                          <div className="bg-white p-6 rounded-lg border border-gray-200">
+                            <h3 className="text-lg font-medium text-gray-900 mb-4">Munich Re's Quote</h3>
+                            <p className="text-sm text-gray-600 mb-6">Provide your proposal for this proportional facultative submission</p>
 
-                          <div className="grid grid-cols-1 gap-8">
-                            {/* Quote Information */}
-                            <div className="bg-gray-50 rounded-lg p-6">
-                              <h4 className="text-base font-medium text-gray-900 mb-4">Quote Information</h4>
-                              <div className="grid grid-cols-2 gap-6">
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700">Share Offer (%)</label>
-                                  <div className="mt-1 relative">
-                                    <input
-                                      type="number"
-                                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm pr-8"
-                                      placeholder="Enter share percentage"
-                                      disabled={!isProposingNewValues}
-                                    />
-                                    <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                                      <span className="text-gray-500 sm:text-sm">%</span>
-                                    </div>
-                                  </div>
-                                  <p className="mt-1 text-xs text-gray-500">Enter the percentage share you wish to offer</p>
-                                </div>
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700">Sum Insured Amount</label>
-                                  <div className="mt-1 bg-gray-100 p-3 rounded-md border border-gray-200">
-                                    R 1,670,000,000 USD
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Deductions */}
-                            <div className="bg-gray-50 rounded-lg p-6">
-                              <h4 className="text-base font-medium text-gray-900 mb-4">Deductions</h4>
+                            <div className="grid grid-cols-2 gap-6">
                               <div>
-                                <label className="block text-sm font-medium text-gray-700">Total Deductions (%)</label>
-                                <div className="mt-1 bg-gray-100 p-3 rounded-md border border-gray-200">
-                                  30.00%
+                                <label className="block text-sm font-medium text-gray-700">Share Offer (%)</label>
+                                <div className="mt-1 relative">
+                                  <input
+                                    id="pro-quote-share-offer"
+                                    name="shareOffer"
+                                    autoComplete="off"
+                                    type="number"
+                                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm pr-8"
+                                    placeholder="Enter share percentage"
+                                    value={shareOffer}
+                                    onChange={(e) => setShareOffer(e.target.value)}
+                                  />
+                                  <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                    <span className="text-gray-500 sm:text-sm">%</span>
+                                  </div>
+                                </div>
+                                <p className="mt-1 text-xs text-gray-500">Enter the percentage share you wish to offer</p>
+                              </div>
+
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700">Sum Insured Amount</label>
+                                <div className="mt-1 bg-gray-50 p-3 rounded-md border border-gray-200">
+                                  {String(data?.sumInsured ?? '').toLocaleString()} {String((data as any)?.currency ?? '')}
+                                </div>
+                              </div>
+
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700">Premium</label>
+                                <div className="mt-1 relative">
+                                  <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                    <span className="text-gray-500 sm:text-sm">R</span>
+                                  </div>
+                                  <input
+                                    id="pro-quote-premium"
+                                    name="premiumAmount"
+                                    autoComplete="off"
+                                    type="text"
+                                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm pl-8"
+                                    placeholder="Enter premium amount"
+                                    value={quotePremiumAmount}
+                                    onChange={(e) => {
+                                      setLastEdited('premium');
+                                      setQuotePremiumAmount(formatMoneySpacesLoose(e.target.value, 6));
+                                      if (quotePremiumRate) setQuotePremiumRate('');
+                                    }}
+                                    onBlur={() => {
+                                      if (!quotePremiumAmount) return;
+                                      setQuotePremiumAmount(normalizeMoneyMax(quotePremiumAmount, 6));
+                                    }}
+                                  />
+                                </div>
+                                <p className="mt-1 text-xs text-gray-500">If Premium is entered and Rate is empty, Rate is auto-calculated.</p>
+                              </div>
+
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700">Rate</label>
+                                <div className="mt-1 relative">
+                                  <input
+                                    id="pro-quote-rate"
+                                    name="premiumRate"
+                                    inputMode="decimal"
+                                    autoComplete="off"
+                                    type="text"
+                                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm pr-8"
+                                    placeholder="Enter premium rate"
+                                    value={quotePremiumRate}
+                                    onChange={(e) => {
+                                      setLastEdited('rate');
+                                      setQuotePremiumRate(e.target.value);
+                                      if (quotePremiumAmount) setQuotePremiumAmount('');
+                                    }}
+                                    onBlur={() => {
+                                      if (!quotePremiumRate) return;
+                                      const n = parseNumber(quotePremiumRate);
+                                      if (!n) return;
+                                      setQuotePremiumRate(n.toFixed(2));
+                                    }}
+                                  />
+                                  <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                    <span className="text-gray-500 sm:text-sm">%</span>
+                                  </div>
+                                </div>
+                                <p className="mt-1 text-xs text-gray-500">If Rate is entered and Premium is empty, Premium is auto-calculated.</p>
+                              </div>
+
+                              <div className="col-span-2">
+                                <label className="block text-sm font-medium text-gray-700">Total Deductions</label>
+                                <select
+                                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm bg-white p-3"
+                                  value={deductionsPreset}
+                                  onChange={(e) => setDeductionsPreset(e.target.value as 'option1' | 'option2')}
+                                >
+                                  <option value="option1">Commission 20%, Overrider 2.5%, Brokerage 2.5% (Total 25%)</option>
+                                  <option value="option2">FOC (Free of Commission)</option>
+                                </select>
+                                <div className="mt-2 text-xs text-gray-600">
+                                  Commission: {commission}% • Overrider: {overrider}% • Brokerage: {brokerage}% • <span className="font-medium">Total: {totalDeductions}%</span>
                                 </div>
                               </div>
                             </div>
 
-                            {/* Quote Actions */}
-                            <div className="bg-gray-50 rounded-lg p-6">
-                              <div className="flex items-center space-x-4">
+                            {/* Formula/value boxes (same as Non-Proportional, without Layer/In excess inputs) */}
+                            <div className="mt-6 space-y-3">
+                              <div className="grid grid-cols-[140px_1fr] items-center gap-3">
+                                <div className="text-sm font-semibold text-green-600">Premium</div>
                                 <button
                                   type="button"
-                                  onClick={() => setIsProposingNewValues(false)}
-                                  className={`inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md ${
-                                    !isProposingNewValues 
-                                      ? 'text-white bg-blue-600 hover:bg-blue-700'
-                                      : 'text-gray-700 bg-white hover:bg-gray-50'
-                                  } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
+                                  onClick={() =>
+                                    copyText(
+                                      'premium',
+                                      premiumNumber && !rateNumber
+                                        ? `R ${
+                                            shareOfferPct
+                                              ? formatMoneySpaces(premiumAtShareOffer.toFixed(2), 2)
+                                              : normalizeMoney(quotePremiumAmount)
+                                          }`
+                                        : rateNumber
+                                          ? `R ${
+                                              shareOfferPct
+                                                ? formatMoneySpaces(premiumAtShareOfferFromRate.toFixed(2), 2)
+                                                : formatMoneySpaces(calcPremiumFromRate.toFixed(2), 2)
+                                            }`
+                                          : ''
+                                    )
+                                  }
+                                  className="cursor-pointer select-text text-left bg-gray-100 border border-gray-200 rounded-md px-3 py-2 text-sm text-green-700 hover:bg-gray-50 hover:border-gray-300 active:scale-[0.99] transition"
                                 >
-                                  Accept Broker Values
+                                  {premiumNumber && !rateNumber ? (
+                                    <>
+                                      R{' '}
+                                      {shareOfferPct
+                                        ? formatMoneySpaces(premiumAtShareOffer.toFixed(2), 2)
+                                        : normalizeMoney(quotePremiumAmount)}
+                                    </>
+                                  ) : rateNumber ? (
+                                    <>
+                                      R{' '}
+                                      {shareOfferPct
+                                        ? formatMoneySpaces(premiumAtShareOfferFromRate.toFixed(2), 2)
+                                        : formatMoneySpaces(calcPremiumFromRate.toFixed(2), 2)}
+                                    </>
+                                  ) : (
+                                    <>—</>
+                                  )}
+                                  <span className="ml-2 text-[11px] text-gray-500">
+                                    {copiedKey === 'premium' ? 'Copied' : 'Click to copy'}
+                                  </span>
                                 </button>
+                              </div>
+
+                              <div className="grid grid-cols-[140px_1fr] items-center gap-3">
+                                <div className="text-sm font-semibold text-green-600">Premium Rate</div>
                                 <button
                                   type="button"
-                                  onClick={handleProposeNewValues}
-                                  className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm ${
-                                    isProposingNewValues
-                                      ? 'text-white bg-blue-600 hover:bg-blue-700'
-                                      : 'text-gray-700 bg-white hover:bg-gray-50 border-gray-300'
-                                  } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
+                                  onClick={() =>
+                                    copyText(
+                                      'rate',
+                                      quotePremiumRate
+                                        ? `${parseNumber(quotePremiumRate).toFixed(2)}%`
+                                        : (layerAmount && premiumNumber)
+                                          ? `${calcRateFromPremium.toFixed(2)}%`
+                                          : ''
+                                    )
+                                  }
+                                  className="cursor-pointer select-text text-left bg-gray-100 border border-gray-200 rounded-md px-3 py-2 text-sm text-green-700 hover:bg-gray-50 hover:border-gray-300 active:scale-[0.99] transition"
                                 >
-                                  Propose New Values
+                                  {quotePremiumRate ? (
+                                    <>{parseNumber(quotePremiumRate).toFixed(2)}%</>
+                                  ) : layerAmount && premiumNumber ? (
+                                    <>{calcRateFromPremium.toFixed(2)}%</>
+                                  ) : (
+                                    <>—</>
+                                  )}
+                                  <span className="ml-2 text-[11px] text-gray-500">
+                                    {copiedKey === 'rate' ? 'Copied' : 'Click to copy'}
+                                  </span>
                                 </button>
+                              </div>
+
+                              <div className="grid grid-cols-[140px_1fr] items-center gap-3">
+                                <div className="text-sm font-semibold text-green-600">100% Premium</div>
                                 <button
                                   type="button"
-                                  onClick={handleShowDetails}
-                                  className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center"
+                                  onClick={() =>
+                                    copyText(
+                                      'premium100',
+                                      premiumNumber
+                                        ? `R ${formatMoneySpacesLoose(quotePremiumAmount, 6)}`
+                                        : rateNumber
+                                          ? `R ${formatMoneySpacesLoose(calcPremiumFromRate.toString(), 6)}`
+                                          : ''
+                                    )
+                                  }
+                                  className="cursor-pointer select-text text-left bg-gray-100 border border-gray-200 rounded-md px-3 py-2 text-sm text-green-700 hover:bg-gray-50 hover:border-gray-300 active:scale-[0.99] transition"
                                 >
-                                  Show Details
-                                  <svg 
-                                    className={`ml-1 h-5 w-5 transform transition-transform ${showDetails ? 'rotate-180' : ''}`} 
-                                    viewBox="0 0 20 20" 
-                                    fill="currentColor"
-                                  >
-                                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                                  </svg>
+                                  {premiumNumber ? (
+                                    <>R {formatMoneySpacesLoose(quotePremiumAmount, 6)}</>
+                                  ) : rateNumber ? (
+                                    <>R {formatMoneySpacesLoose(calcPremiumFromRate.toString(), 6)}</>
+                                  ) : (
+                                    <>—</>
+                                  )}
+                                  <span className="ml-2 text-[11px] text-gray-500">
+                                    {copiedKey === 'premium100' ? 'Copied' : 'Click to copy'}
+                                  </span>
                                 </button>
                               </div>
                             </div>
 
-                            {/* Additional Details Section */}
-                            {showDetails && (
-                              <div className="bg-gray-50 rounded-lg p-6 space-y-4">
-                                <h4 className="text-base font-medium text-gray-900">Additional Details</h4>
-                                <div className="grid grid-cols-2 gap-4">
-                                  <div>
-                                    <label className="block text-sm font-medium text-gray-700">Premium Rate (%)</label>
-                                    <input
-                                      type="number"
-                                      step="0.01"
-                                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                                      disabled={!isProposingNewValues}
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="block text-sm font-medium text-gray-700">Commission (%)</label>
-                                    <input
-                                      type="number"
-                                      step="0.01"
-                                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                                      disabled={!isProposingNewValues}
-                                    />
-                                  </div>
-                                </div>
-                              </div>
-                            )}
+                            <div className="mt-8 flex items-center space-x-4">
+                              <button
+                                type="button"
+                                onClick={applyBrokerValuesToQuote}
+                                className={`inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md ${
+                                  !isProposingNewValues 
+                                    ? 'text-white bg-blue-600 hover:bg-blue-700'
+                                    : 'text-gray-700 bg-white hover:bg-gray-50'
+                                } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
+                              >
+                                Accept Broker Values
+                              </button>
+                              <button
+                                type="button"
+                                onClick={enableProposeNewValues}
+                                className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm ${
+                                  isProposingNewValues
+                                    ? 'text-white bg-blue-600 hover:bg-blue-700'
+                                    : 'text-gray-700 bg-white hover:bg-gray-50 border-gray-300'
+                                } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
+                              >
+                                Propose New Values
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setShowQuoteDetails((v) => !v)}
+                                className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center"
+                              >
+                                Show Details
+                                <svg 
+                                  className={`ml-1 h-5 w-5 transform transition-transform ${showQuoteDetails ? 'rotate-180' : ''}`} 
+                                  viewBox="0 0 20 20" 
+                                  fill="currentColor"
+                                >
+                                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                                </svg>
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </Tab.Panel>
@@ -925,47 +1271,12 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
                   <div className="p-4 border-b border-gray-200">
                     <h3 className="text-lg font-medium text-gray-900">Communication with Broker</h3>
                   </div>
-                  
-                  <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                    {messages.map((message) => (
-                      <div
-                        key={message.id}
-                        className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                      >
-                        <div
-                          className={`rounded-lg px-4 py-2 max-w-sm ${
-                            message.sender === 'user'
-                              ? 'bg-blue-600 text-white'
-                              : 'bg-gray-100 text-gray-900'
-                          }`}
-                        >
-                          <p className="text-sm">{message.text}</p>
-                          <p className={`text-xs mt-1 ${
-                            message.sender === 'user' ? 'text-blue-100' : 'text-gray-500'
-                          }`}>
-                            {message.timestamp}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="p-4 border-t border-gray-200">
-                    <form onSubmit={handleSendMessage} className="flex space-x-2">
-                      <input
-                        type="text"
-                        value={newMessage}
-                        onChange={(e) => setNewMessage(e.target.value)}
-                        placeholder="Type your message..."
-                        className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                      />
-                      <button
-                        type="submit"
-                        className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                      >
-                        <PaperAirplaneIcon className="h-5 w-5" />
-                      </button>
-                    </form>
+                  <div className="p-4">
+                    <Chat
+                      submissionId={chatSubmissionId}
+                      className="h-[calc(100vh-14rem)]"
+                      participantLabels={{ broker: 'Broker', reinsurer: 'Reinsurer', insurer: 'Insurer' }}
+                    />
                   </div>
                 </div>
               </div>
@@ -1020,6 +1331,15 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
                         }`
                       }>
                         Submission Details
+                      </Tab>
+                      <Tab className={({ selected }) =>
+                        `px-6 py-3 text-sm font-medium border-b-2 ${
+                          selected
+                            ? 'text-blue-600 border-blue-600'
+                            : 'text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300'
+                        }`
+                      }>
+                        Main Submission
                       </Tab>
                       <Tab className={({ selected }) =>
                         `px-6 py-3 text-sm font-medium border-b-2 ${
@@ -1359,6 +1679,81 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
                         </div>
                       </Tab.Panel>
 
+                      {/* Main Submission Panel (pulled from broker Non-Proportional FAC form) */}
+                      <Tab.Panel className="p-6">
+                        <div className="bg-white rounded-lg">
+                          <div className="flex justify-between items-center mb-6">
+                            <div>
+                              <h3 className="text-xl font-semibold text-gray-900">Main Submission</h3>
+                              <p className="mt-1 text-sm text-gray-500">Pulled from broker Non-Proportional Facultative Reinsurance form</p>
+                            </div>
+                          </div>
+
+                          {!brokerNonPropSubmission ? (
+                            <div className="rounded-lg border border-gray-200 bg-gray-50 p-6 text-sm text-gray-600">
+                              No broker submission found. Open this from the broker Non-Proportional FAC page (it stores the selected submission in session storage).
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-1 gap-6">
+                              <div className="bg-gray-50 rounded-lg p-6">
+                                <h4 className="text-base font-medium text-gray-900 mb-4">Key details</h4>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Ceding Company</label>
+                                    <input value={brokerNonPropSubmission.cedingCompany ?? ''} readOnly className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm" />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Insured</label>
+                                    <input value={brokerNonPropSubmission.insured ?? ''} readOnly className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm" />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Broker</label>
+                                    <input value={brokerNonPropSubmission.brokerName ?? brokerNonPropSubmission.broker ?? ''} readOnly className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm" />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Policy Reference</label>
+                                    <input value={brokerNonPropSubmission.policyReferenceNumber ?? brokerNonPropSubmission.policyNo ?? ''} readOnly className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm" />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Class of Business</label>
+                                    <input value={brokerNonPropSubmission.classOfBusiness ?? ''} readOnly className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm" />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Business Occupation</label>
+                                    <input value={brokerNonPropSubmission.businessOccupation ?? ''} readOnly className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm" />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Risk Country</label>
+                                    <input value={brokerNonPropSubmission.riskCountry ?? ''} readOnly className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm" />
+                                  </div>
+                                  <div className="md:col-span-2">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Excess Layer</label>
+                                    <input value={brokerNonPropSubmission.excessLayer ?? ''} readOnly className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm" />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Sum Insured</label>
+                                    <input value={brokerNonPropSubmission.sumInsured ?? ''} readOnly className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm" />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Premium Rate</label>
+                                    <input value={brokerNonPropSubmission.premiumRate ?? ''} readOnly className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm" />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Premium Amount</label>
+                                    <input value={brokerNonPropSubmission.premiumAmount ?? ''} readOnly className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm" />
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="bg-gray-50 rounded-lg p-6">
+                                <h4 className="text-base font-medium text-gray-900 mb-4">Description</h4>
+                                <textarea value={brokerNonPropSubmission.description ?? ''} readOnly rows={3} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm" />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </Tab.Panel>
+
                       {/* My Quote Panel */}
                       <Tab.Panel className="p-6">
                         <div className="space-y-6">
@@ -1374,7 +1769,8 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
                                     type="number"
                                     className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm pr-8"
                                     placeholder="Enter share percentage"
-                                    disabled={!isProposingNewValues}
+                                    value={shareOffer}
+                                    onChange={(e) => setShareOffer(e.target.value)}
                                   />
                                   <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                                     <span className="text-gray-500 sm:text-sm">%</span>
@@ -1389,11 +1785,234 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
                                   R 1,670,000,000 USD
                                 </div>
                               </div>
+
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700">Premium</label>
+                                <div className="mt-1 relative">
+                                  <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                    <span className="text-gray-500 sm:text-sm">R</span>
+                                  </div>
+                                  <input
+                                    type="text"
+                                    id="np-quote-premium"
+                                    name="premiumAmount"
+                                    autoComplete="off"
+                                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm pl-8"
+                                    placeholder="Enter premium amount"
+                                    value={quotePremiumAmount}
+                                    onChange={(e) => {
+                                      setLastEdited('premium');
+                                      setQuotePremiumAmount(formatMoneySpacesLoose(e.target.value, 6));
+                                      if (quotePremiumRate) setQuotePremiumRate('');
+                                    }}
+                                    onBlur={() => {
+                                      if (!quotePremiumAmount) return;
+                                      setQuotePremiumAmount(normalizeMoneyMax(quotePremiumAmount, 6));
+                                    }}
+                                  />
+                                </div>
+                                <p className="mt-1 text-xs text-gray-500">If Premium is entered and Rate is empty, Rate is auto-calculated.</p>
+                              </div>
+
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700">Rate</label>
+                                <div className="mt-1 relative">
+                                  <input
+                                    type="text"
+                                    id="np-quote-rate"
+                                    name="premiumRate"
+                                    inputMode="decimal"
+                                    autoComplete="off"
+                                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm pr-8"
+                                    placeholder="Enter premium rate"
+                                    value={quotePremiumRate}
+                                    onChange={(e) => {
+                                      setLastEdited('rate');
+                                      setQuotePremiumRate(e.target.value);
+                                      if (quotePremiumAmount) setQuotePremiumAmount('');
+                                    }}
+                                    onBlur={() => {
+                                      if (!quotePremiumRate) return;
+                                      const n = parseNumber(quotePremiumRate);
+                                      if (!n) return;
+                                      setQuotePremiumRate(n.toFixed(2));
+                                    }}
+                                  />
+                                  <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                    <span className="text-gray-500 sm:text-sm">%</span>
+                                  </div>
+                                </div>
+                                <p className="mt-1 text-xs text-gray-500">If Rate is entered and Premium is empty, Premium is auto-calculated.</p>
+                              </div>
                               
                               <div className="col-span-2">
-                                <label className="block text-sm font-medium text-gray-700">Deductions (%)</label>
-                                <div className="mt-1 bg-gray-50 p-3 rounded-md border border-gray-200">
-                                  Total: 30.00%
+                                <label className="block text-sm font-medium text-gray-700">Total Deductions</label>
+                                <select
+                                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm bg-white p-3"
+                                  value={deductionsPreset}
+                                  onChange={(e) => setDeductionsPreset(e.target.value as 'option1' | 'option2')}
+                                >
+                                  <option value="option1">Commission 20%, Overrider 2.5%, Brokerage 2.5% (Total 25%)</option>
+                                  <option value="option2">FOC (Free of Commission)</option>
+                                </select>
+                                <div className="mt-2 text-xs text-gray-600">
+                                  Commission: {commission}% • Overrider: {overrider}% • Brokerage: {brokerage}% • <span className="font-medium">Total: {totalDeductions}%</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Layer + formula helpers (as per screenshot) */}
+                            <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+                              <div className="bg-gray-50 rounded-lg border border-gray-200 p-6">
+                                <div className="flex flex-col gap-4">
+                                  <div className="grid grid-cols-1 sm:grid-cols-[90px_1fr] items-center gap-3">
+                                    <span className="text-sm font-semibold text-gray-700">Layer</span>
+                                    <div className="relative">
+                                      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                        <span className="text-gray-500 sm:text-sm">R</span>
+                                      </div>
+                                      <input
+                                        type="text"
+                                        id="np-quote-layer"
+                                        name="layer"
+                                        inputMode="numeric"
+                                        autoComplete="off"
+                                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm pl-8 py-2.5"
+                                        placeholder="e.g. 1 370 000 000"
+                                        value={layer}
+                                        onChange={(e) => setLayer(formatCurrencySpaces(e.target.value))}
+                                      />
+                                    </div>
+                                  </div>
+
+                                  <div className="grid grid-cols-1 sm:grid-cols-[90px_1fr] items-center gap-3">
+                                    <span className="text-sm font-semibold text-gray-700">In excess</span>
+                                    <div className="relative">
+                                      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                        <span className="text-gray-500 sm:text-sm">R</span>
+                                      </div>
+                                      <input
+                                        type="text"
+                                        id="np-quote-excess"
+                                        name="excessOf"
+                                        inputMode="numeric"
+                                        autoComplete="off"
+                                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm pl-8 py-2.5"
+                                        placeholder="e.g. 300 000 000"
+                                        value={excessOf}
+                                        onChange={(e) => setExcessOf(formatCurrencySpaces(e.target.value))}
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <p className="mt-4 text-xs text-gray-500">
+                                  Layer defaults to Sum Insured if left blank.
+                                </p>
+                              </div>
+
+                              <div className="space-y-3">
+                                <div className="grid grid-cols-[140px_1fr] items-center gap-3">
+                                  <div className="text-sm font-semibold text-green-600">Premium</div>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      copyText(
+                                        'premium',
+                                        premiumNumber && !rateNumber
+                                          ? `R ${
+                                              shareOfferPct
+                                                ? formatMoneySpaces(premiumAtShareOffer.toFixed(2), 2)
+                                                : normalizeMoney(quotePremiumAmount)
+                                            }`
+                                          : rateNumber
+                                            ? `R ${
+                                                shareOfferPct
+                                                  ? formatMoneySpaces(premiumAtShareOfferFromRate.toFixed(2), 2)
+                                                  : formatMoneySpaces(calcPremiumFromRate.toFixed(2), 2)
+                                              }`
+                                            : ''
+                                      )
+                                    }
+                                    className="cursor-pointer select-text text-left bg-gray-100 border border-gray-200 rounded-md px-3 py-2 text-sm text-green-700 hover:bg-gray-50 hover:border-gray-300 active:scale-[0.99] transition"
+                                  >
+                                    {premiumNumber && !rateNumber ? (
+                                      <>
+                                        R{' '}
+                                        {shareOfferPct
+                                          ? formatMoneySpaces(premiumAtShareOffer.toFixed(2), 2)
+                                          : normalizeMoney(quotePremiumAmount)}
+                                      </>
+                                    ) : rateNumber ? (
+                                      <>
+                                        R{' '}
+                                        {shareOfferPct
+                                          ? formatMoneySpaces(premiumAtShareOfferFromRate.toFixed(2), 2)
+                                          : formatMoneySpaces(calcPremiumFromRate.toFixed(2), 2)}
+                                      </>
+                                    ) : (
+                                      <>—</>
+                                    )}
+                                    <span className="ml-2 text-[11px] text-gray-500">
+                                      {copiedKey === 'premium' ? 'Copied' : 'Click to copy'}
+                                    </span>
+                                  </button>
+                                </div>
+                                <div className="grid grid-cols-[140px_1fr] items-center gap-3">
+                                  <div className="text-sm font-semibold text-green-600">Premium Rate</div>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      copyText(
+                                        'rate',
+                                        quotePremiumRate
+                                          ? `${parseNumber(quotePremiumRate).toFixed(2)}%`
+                                          : (layerAmount && premiumNumber)
+                                            ? `${calcRateFromPremium.toFixed(2)}%`
+                                            : ''
+                                      )
+                                    }
+                                    className="cursor-pointer select-text text-left bg-gray-100 border border-gray-200 rounded-md px-3 py-2 text-sm text-green-700 hover:bg-gray-50 hover:border-gray-300 active:scale-[0.99] transition"
+                                  >
+                                    {quotePremiumRate ? (
+                                      <>{parseNumber(quotePremiumRate).toFixed(2)}%</>
+                                    ) : layerAmount && premiumNumber ? (
+                                      <>{calcRateFromPremium.toFixed(2)}%</>
+                                    ) : (
+                                      <>—</>
+                                    )}
+                                    <span className="ml-2 text-[11px] text-gray-500">
+                                      {copiedKey === 'rate' ? 'Copied' : 'Click to copy'}
+                                    </span>
+                                  </button>
+                                </div>
+                                <div className="grid grid-cols-[140px_1fr] items-center gap-3">
+                                  <div className="text-sm font-semibold text-green-600">100% Premium</div>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      copyText(
+                                        'premium100',
+                                        premiumNumber
+                                          ? `R ${formatMoneySpacesLoose(quotePremiumAmount, 6)}`
+                                          : rateNumber
+                                            ? `R ${formatMoneySpacesLoose(calcPremiumFromRate.toString(), 6)}`
+                                            : ''
+                                      )
+                                    }
+                                    className="cursor-pointer select-text text-left bg-gray-100 border border-gray-200 rounded-md px-3 py-2 text-sm text-green-700 hover:bg-gray-50 hover:border-gray-300 active:scale-[0.99] transition"
+                                  >
+                                    {premiumNumber ? (
+                                      <>R {formatMoneySpacesLoose(quotePremiumAmount, 6)}</>
+                                    ) : rateNumber ? (
+                                      <>R {formatMoneySpacesLoose(calcPremiumFromRate.toString(), 6)}</>
+                                    ) : (
+                                      <>—</>
+                                    )}
+                                    <span className="ml-2 text-[11px] text-gray-500">
+                                      {copiedKey === 'premium100' ? 'Copied' : 'Click to copy'}
+                                    </span>
+                                  </button>
                                 </div>
                               </div>
                             </div>
@@ -1401,7 +2020,7 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
                             <div className="mt-8 flex items-center space-x-4">
                               <button
                                 type="button"
-                                onClick={() => setIsProposingNewValues(false)}
+                                onClick={applyBrokerValuesToQuote}
                                 className={`inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md ${
                                   !isProposingNewValues 
                                     ? 'text-white bg-blue-600 hover:bg-blue-700'
@@ -1412,7 +2031,7 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
                               </button>
                               <button
                                 type="button"
-                                onClick={handleProposeNewValues}
+                                onClick={enableProposeNewValues}
                                 className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm ${
                                   isProposingNewValues
                                     ? 'text-white bg-blue-600 hover:bg-blue-700'
@@ -1423,12 +2042,12 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
                               </button>
                               <button
                                 type="button"
-                                onClick={handleShowDetails}
+                                onClick={() => setShowQuoteDetails((v) => !v)}
                                 className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center"
                               >
                                 Show Details
                                 <svg 
-                                  className={`ml-1 h-5 w-5 transform transition-transform ${showDetails ? 'rotate-180' : ''}`} 
+                                  className={`ml-1 h-5 w-5 transform transition-transform ${showQuoteDetails ? 'rotate-180' : ''}`} 
                                   viewBox="0 0 20 20" 
                                   fill="currentColor"
                                 >
@@ -1436,6 +2055,47 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
                                 </svg>
                               </button>
                             </div>
+
+                            {showQuoteDetails && (
+                              <div className="mt-6 bg-gray-50 rounded-lg border border-gray-200 p-6">
+                                <h4 className="text-sm font-semibold text-gray-900 mb-4">Deductions breakdown</h4>
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700">Commission (%)</label>
+                                    <input
+                                      type="text"
+                                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                      value={commission}
+                                      onChange={(e) => setCommission(e.target.value)}
+                                      disabled={!isProposingNewValues}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700">Overrider (%)</label>
+                                    <input
+                                      type="text"
+                                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                      value={overrider}
+                                      onChange={(e) => setOverrider(e.target.value)}
+                                      disabled={!isProposingNewValues}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700">Brokerage (%)</label>
+                                    <input
+                                      type="text"
+                                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                      value={brokerage}
+                                      onChange={(e) => setBrokerage(e.target.value)}
+                                      disabled={!isProposingNewValues}
+                                    />
+                                  </div>
+                                </div>
+                                <div className="mt-4 text-sm text-gray-700">
+                                  Total deductions: <span className="font-semibold">{totalDeductions}%</span>
+                                </div>
+                              </div>
+                            )}
 
                             <div className="mt-8">
                               <label className="block text-sm font-medium text-gray-700">Quote Conditions & Comments</label>
@@ -1716,47 +2376,12 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
                   <div className="p-4 border-b border-gray-200">
                     <h3 className="text-lg font-medium text-gray-900">Communication with Broker</h3>
                   </div>
-                  
-                  <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                    {messages.map((message) => (
-                      <div
-                        key={message.id}
-                        className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                      >
-                        <div
-                          className={`rounded-lg px-4 py-2 max-w-sm ${
-                            message.sender === 'user'
-                              ? 'bg-blue-600 text-white'
-                              : 'bg-gray-100 text-gray-900'
-                          }`}
-                        >
-                          <p className="text-sm">{message.text}</p>
-                          <p className={`text-xs mt-1 ${
-                            message.sender === 'user' ? 'text-blue-100' : 'text-gray-500'
-                          }`}>
-                            {message.timestamp}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="p-4 border-t border-gray-200">
-                    <form onSubmit={handleSendMessage} className="flex space-x-2">
-                      <input
-                        type="text"
-                        value={newMessage}
-                        onChange={(e) => setNewMessage(e.target.value)}
-                        placeholder="Type your message..."
-                        className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                      />
-                      <button
-                        type="submit"
-                        className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                      >
-                        <PaperAirplaneIcon className="h-5 w-5" />
-                      </button>
-                    </form>
+                  <div className="p-4">
+                    <Chat
+                      submissionId={chatSubmissionId}
+                      className="h-[calc(100vh-14rem)]"
+                      participantLabels={{ broker: 'Broker', reinsurer: 'Reinsurer', insurer: 'Insurer' }}
+                    />
                   </div>
                 </div>
               </div>

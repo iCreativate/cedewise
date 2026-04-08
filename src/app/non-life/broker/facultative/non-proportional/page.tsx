@@ -6,7 +6,7 @@ import { countries } from '../../../../../app/utils/countries'
 import { currencies } from '../../../../../app/utils/currencies'
 import { useUser } from '@/context/UserContext'
 import DocumentUpload, { UploadedFileData, FileUploadResult } from '@/components/DocumentUpload'
-import ChatbotAssistant from '@/components/ChatbotAssistant'
+import Chat from '@/components/Chat'
 import CurrencyConverter from '@/components/CurrencyConverter'
 import { logger } from '@/lib/logger'
 import Link from 'next/link'
@@ -14,10 +14,6 @@ import { ArrowLeftIcon, ArrowPathIcon, TrashIcon, ChartBarIcon } from '@heroicon
 import MultiSelect from '@/components/MultiSelect'
 import { reinsurers, Reinsurer } from '@/app/utils/reinsurers'
 import TabCard from '@/components/TabCard'
-
-// Add AWS Lex bot configuration
-const AWS_BOT_ID = "TSTALIASID"; // Placeholder ID - replace with actual bot ID in production
-const AWS_BOT_ALIAS_ID = "TSTAUTHID"; // Placeholder ID - replace with actual alias ID in production
 
 // Function to generate a unique policy reference number
 const generatePolicyReferenceNumber = () => {
@@ -94,28 +90,7 @@ export default function NonProportionalPage() {
 
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
   const [fileError, setFileError] = useState<string | null>(null)
-
-  const [chatMessages, setChatMessages] = useState<Array<{
-    sender: 'broker' | 'reinsurer';
-    message: string;
-    timestamp: string;
-  }>>([
-    { 
-      sender: 'reinsurer', 
-      message: 'Hello, I have some questions about this submission. Can you provide more details about the insured property?', 
-      timestamp: new Date(Date.now() - 86400000).toISOString() 
-    },
-    { 
-      sender: 'broker', 
-      message: 'Sure, it\'s a manufacturing facility with state-of-the-art fire protection systems. What specific details do you need?', 
-      timestamp: new Date(Date.now() - 75600000).toISOString() 
-    },
-    { 
-      sender: 'reinsurer', 
-      message: 'Thanks, I need more information about the fire protection systems and any previous loss history.', 
-      timestamp: new Date(Date.now() - 43200000).toISOString() 
-    }
-  ])
+  const [chatThreadId, setChatThreadId] = useState<string>('')
 
   // Add state for reinsurer data and loading state
   const [reinsurerData, setReinsurerData] = useState<{
@@ -450,24 +425,6 @@ export default function NonProportionalPage() {
     });
   };
 
-  const handleSendMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-    const messageInput = document.getElementById('chatMessage') as HTMLInputElement;
-    const message = messageInput.value.trim();
-    
-    if (message) {
-      setChatMessages(prev => [
-        ...prev,
-        {
-          sender: 'broker',
-          message,
-          timestamp: new Date().toISOString()
-        }
-      ]);
-      messageInput.value = '';
-    }
-  };
-
   // Set broker company from user context when component mounts
   useEffect(() => {
     if (brokerCompany) {
@@ -477,6 +434,29 @@ export default function NonProportionalPage() {
       }));
     }
   }, [brokerCompany]);
+
+  useEffect(() => {
+    // If broker navigated here from an existing submission, reuse its reference as the chat thread id.
+    try {
+      const raw = sessionStorage.getItem('selectedSubmission')
+      if (raw) {
+        const parsed = JSON.parse(raw) as { policyReferenceNumber?: string; id?: string | number } | null
+        if (parsed?.policyReferenceNumber) {
+          setChatThreadId(String(parsed.policyReferenceNumber))
+          return
+        }
+        if (parsed?.id !== undefined) {
+          setChatThreadId(String(parsed.id))
+          return
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    // Otherwise, use the current form reference number (new submission draft).
+    setChatThreadId(formData.policyReferenceNumber)
+  }, [formData.policyReferenceNumber])
 
   const [drafts, setDrafts] = useState<Array<{
     id: string;
@@ -1417,17 +1397,15 @@ export default function NonProportionalPage() {
         <div className="lg:w-80">
           <div className="sticky top-6">
             <TabCard
-              title="Assistance"
-              description="Get help with your submission"
+              title="Chat with Reinsurer / Insurer"
+              description="Messages update live"
               color="purple"
               className="rounded-none"
             >
-              {/* Add the Lex chatbot assistant */}
-              <ChatbotAssistant 
-                botId={AWS_BOT_ID}
-                botAliasId={AWS_BOT_ALIAS_ID}
-                localeId="en_US"
-                initialMessage="Hello! I'm your reinsurance assistant. How can I help with your non-proportional facultative submission?"
+              <Chat
+                submissionId={chatThreadId || formData.policyReferenceNumber}
+                className="h-[400px]"
+                participantLabels={{ reinsurer: 'Reinsurer', insurer: 'Insurer', broker: 'Broker' }}
               />
             </TabCard>
           </div>

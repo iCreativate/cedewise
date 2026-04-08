@@ -130,10 +130,23 @@ interface Submission {
   documents: string[];
 }
 
+export interface BoundRisk {
+  id: string;
+  title: string;
+  description: string;
+  status: string;
+  premium: number;
+  coverage: string;
+  submitter?: { name: string; email: string; company?: string };
+  createdAt: string;
+  updatedAt: string;
+}
+
 interface DashboardProps {
   facultativeData: Submission[];
   proportionalFacData: Submission[];
   nonProportionalFacData: Submission[];
+  boundRisks?: BoundRisk[];
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   activeTab: string;
@@ -306,6 +319,7 @@ export const ReinsurerDashboard: React.FC<DashboardProps> = ({
   facultativeData,
   proportionalFacData,
   nonProportionalFacData,
+  boundRisks = [],
   searchQuery,
   setSearchQuery,
   activeTab,
@@ -473,6 +487,42 @@ export const ReinsurerDashboard: React.FC<DashboardProps> = ({
           <Tab.Panels>
             {/* Analytics Panel */}
             <Tab.Panel className="p-6">
+              {/* Bound risks from brokers */}
+              {boundRisks.length > 0 && (
+                <div className="bg-white rounded-xl shadow p-6 mb-8">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <CheckCircleIcon className="h-5 w-5 text-green-500 mr-2" />
+                    Newly bound risks
+                  </h3>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Risk</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Coverage</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Premium</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Submitted by</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Bound</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {boundRisks.map((risk) => (
+                          <tr key={risk.id}>
+                            <td className="px-4 py-3 text-sm font-medium text-gray-900">{risk.title}</td>
+                            <td className="px-4 py-3 text-sm text-gray-500">{risk.coverage}</td>
+                            <td className="px-4 py-3 text-sm text-gray-500">{formatLargeCurrency(risk.premium)}</td>
+                            <td className="px-4 py-3 text-sm text-gray-500">{risk.submitter?.name ?? risk.submitter?.company ?? '—'}</td>
+                            <td className="px-4 py-3 text-sm text-gray-500">
+                              {new Date(risk.updatedAt).toLocaleDateString()}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
               {/* Summary Cards */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
                 {/* New Submissions */}

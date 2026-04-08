@@ -177,6 +177,7 @@ export default function NonProportionalFacultativeReinsurancePage() {
     lossRatio: '65%',
   })
   const [submissionId] = useState('sub_654321')
+  const [chatSubmissionId, setChatSubmissionId] = useState<string>(submissionId)
   const [activeTab, setActiveTab] = useState<'details' | 'quote' | 'documents' | 'risk-address' | 'currency-calculator' | 'submissions'>('details')
   const [mapError, setMapError] = useState<string | null>(null)
   const mapRef = useRef<HTMLDivElement>(null)
@@ -253,6 +254,43 @@ export default function NonProportionalFacultativeReinsurancePage() {
       loadGoogleMapsScript()
     }
   }, [activeTab, formData.riskAddress.lat, formData.riskAddress.lng])
+
+  useEffect(() => {
+    // Prefer a real submission id when a broker "View" flow stored it.
+    try {
+      const raw = sessionStorage.getItem('selectedSubmission')
+      if (raw) {
+        const parsed = JSON.parse(raw) as { id?: number | string; policyReferenceNumber?: string } | null
+        const ref = parsed?.policyReferenceNumber
+        if (typeof ref === 'string' && ref.trim()) {
+          setChatSubmissionId(ref.trim())
+          return
+        }
+        const id = parsed?.id
+        if (typeof id === 'number' || typeof id === 'string') {
+          setChatSubmissionId(String(id))
+          return
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    // Fallback: use the first row id if available.
+    const firstRef = nonProportionalFacData?.[0]?.policyReferenceNumber
+    if (typeof firstRef === 'string' && firstRef.trim()) {
+      setChatSubmissionId(firstRef.trim())
+      return
+    }
+    const firstId = nonProportionalFacData?.[0]?.id
+    if (typeof firstId === 'number' || typeof firstId === 'string') {
+      setChatSubmissionId(String(firstId))
+      return
+    }
+
+    // Last resort: keep the existing mock submissionId.
+    setChatSubmissionId(submissionId)
+  }, [nonProportionalFacData, submissionId])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target
@@ -828,7 +866,7 @@ export default function NonProportionalFacultativeReinsurancePage() {
             <div className="bg-white rounded-xl shadow-sm p-6 sticky top-6">
               <h3 className="text-base font-semibold text-gray-800 mb-4">Communication with Broker</h3>
               <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-2">
-                <Chat submissionId={submissionId} />
+                <Chat submissionId={chatSubmissionId} />
               </div>
               <div className="text-xs text-gray-500 mt-1">All messages are visible to both parties. Communication is recorded for audit purposes.</div>
             </div>

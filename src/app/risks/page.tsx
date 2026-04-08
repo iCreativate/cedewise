@@ -1,41 +1,73 @@
-import Link from 'next/link'
-import { FunnelIcon, PlusIcon } from '@heroicons/react/20/solid'
+'use client'
 
-const risks = [
-  {
-    id: 1,
-    name: 'Property Cat Risk - California',
-    type: 'Property',
-    premium: '$500,000',
-    status: 'Pending Review',
-    submittedBy: 'John Smith',
-    submittedDate: '2024-04-10',
-  },
-  {
-    id: 2,
-    name: 'Marine Cargo - Atlantic Route',
-    type: 'Marine',
-    premium: '$750,000',
-    status: 'Under Review',
-    submittedBy: 'Sarah Johnson',
-    submittedDate: '2024-04-09',
-  },
-  {
-    id: 3,
-    name: 'Aviation Fleet Coverage',
-    type: 'Aviation',
-    premium: '$1,200,000',
-    status: 'Bound',
-    submittedBy: 'Michael Brown',
-    submittedDate: '2024-04-08',
-  },
-]
+import { useState, useEffect } from 'react'
+import Link from 'next/link'
+import { FunnelIcon, PlusIcon, CheckCircleIcon } from '@heroicons/react/20/solid'
+
+interface RiskRow {
+  id: string
+  title: string
+  description: string
+  status: string
+  premium: number
+  coverage: string
+  submitter?: { name: string; email: string; company?: string }
+  createdAt: string
+  updatedAt: string
+}
+
+const STATUS_LABEL: Record<string, string> = {
+  DRAFT: 'Draft',
+  SUBMITTED: 'Submitted',
+  UNDER_REVIEW: 'Under Review',
+  ACCEPTED: 'Accepted',
+  REJECTED: 'Rejected',
+  BOUND: 'Bound',
+}
 
 function classNames(...classes: string[]) {
   return classes.filter(Boolean).join(' ')
 }
 
 export default function Risks() {
+  const [risks, setRisks] = useState<RiskRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [bindingId, setBindingId] = useState<string | null>(null)
+
+  const fetchRisks = () => {
+    fetch('/api/risks')
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data: RiskRow[]) => setRisks(Array.isArray(data) ? data : []))
+      .catch(() => setRisks([]))
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    fetchRisks()
+  }, [])
+
+  const handleBind = async (id: string) => {
+    setBindingId(id)
+    try {
+      const res = await fetch(`/api/risks/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'BOUND' }),
+      })
+      if (res.ok) fetchRisks()
+    } finally {
+      setBindingId(null)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="py-6 flex justify-center items-center min-h-[200px]">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600" />
+      </div>
+    )
+  }
+
   return (
     <div className="py-6">
       <header>
@@ -73,10 +105,7 @@ export default function Risks() {
                   <table className="min-w-full divide-y divide-gray-300">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th
-                          scope="col"
-                          className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6"
-                        >
+                        <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">
                           Risk Name
                         </th>
                         <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
@@ -100,36 +129,67 @@ export default function Risks() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 bg-white">
-                      {risks.map((risk) => (
-                        <tr key={risk.id}>
-                          <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
-                            {risk.name}
-                          </td>
-                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{risk.type}</td>
-                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{risk.premium}</td>
-                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                            <span
-                              className={classNames(
-                                risk.status === 'Bound'
-                                  ? 'bg-green-50 text-green-700'
-                                  : risk.status === 'Under Review'
-                                  ? 'bg-yellow-50 text-yellow-700'
-                                  : 'bg-gray-50 text-gray-700',
-                                'inline-flex rounded-full px-2 text-xs font-semibold leading-5'
-                              )}
-                            >
-                              {risk.status}
-                            </span>
-                          </td>
-                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{risk.submittedBy}</td>
-                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{risk.submittedDate}</td>
-                          <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                            <Link href={`/risks/${risk.id}`} className="text-indigo-600 hover:text-indigo-900">
-                              View
-                            </Link>
+                      {risks.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-500">
+                            No risks yet. Create one from the form or they will appear here once added via the API.
                           </td>
                         </tr>
-                      ))}
+                      ) : (
+                        risks.map((risk) => (
+                          <tr key={risk.id}>
+                            <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
+                              {risk.title}
+                            </td>
+                            <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{risk.coverage}</td>
+                            <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                              {typeof risk.premium === 'number' ? `$${risk.premium.toLocaleString()}` : risk.premium}
+                            </td>
+                            <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                              <span
+                                className={classNames(
+                                  risk.status === 'BOUND'
+                                    ? 'bg-green-50 text-green-700'
+                                    : risk.status === 'UNDER_REVIEW'
+                                    ? 'bg-yellow-50 text-yellow-700'
+                                    : 'bg-gray-50 text-gray-700',
+                                  'inline-flex rounded-full px-2 text-xs font-semibold leading-5'
+                                )}
+                              >
+                                {STATUS_LABEL[risk.status] ?? risk.status}
+                              </span>
+                            </td>
+                            <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                              {risk.submitter?.name ?? risk.submitter?.company ?? '—'}
+                            </td>
+                            <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                              {new Date(risk.createdAt).toLocaleDateString()}
+                            </td>
+                            <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                              {risk.status !== 'BOUND' && (
+                                <button
+                                  type="button"
+                                  disabled={bindingId === risk.id}
+                                  onClick={() => handleBind(risk.id)}
+                                  className="text-green-600 hover:text-green-900 disabled:opacity-50 inline-flex items-center mr-3"
+                                >
+                                  {bindingId === risk.id ? (
+                                    <span className="animate-pulse">Binding…</span>
+                                  ) : (
+                                    <>
+                                      <CheckCircleIcon className="h-4 w-4 mr-1 inline" />
+                                      Bind
+                                    </>
+                                  )}
+                                </button>
+                              )}
+                              <Link href={`/risks/${risk.id}`} className="text-indigo-600 hover:text-indigo-900">
+                                View
+                              </Link>
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -140,4 +200,4 @@ export default function Risks() {
       </main>
     </div>
   )
-} 
+}
