@@ -187,7 +187,8 @@ export default function SharedLayout({
       })
       nav.splice(2, 0, { name: 'Clients', href: '/clients', icon: UserGroupIcon })
       nav.splice(3, 0, { name: 'Calendar', href: '/calendar', icon: CalendarIcon })
-      nav.splice(4, 0, { name: 'Submissions', href: '/submissions', icon: ClipboardDocumentListIcon })
+      nav.splice(4, 0, { name: 'Heatmaps', href: '/dashboard/heatmap', icon: FireIcon })
+      nav.splice(5, 0, { name: 'Submissions', href: '/submissions', icon: ClipboardDocumentListIcon })
     } else if (userRole === 'insurer') {
       // Insurer-specific navigation
       nav.splice(1, 0, { 
@@ -235,11 +236,13 @@ export default function SharedLayout({
           },
         ],
       })
+      nav.splice(2, 0, { name: 'Heatmaps', href: '/dashboard/heatmap', icon: FireIcon })
     } else if (userRole === 'reinsurer') {
       // Reinsurer-specific navigation with updated structure
       nav = [
         { name: 'Analytics', href: '/analytics', icon: ChartBarIcon },
-        { 
+        { name: 'Heatmaps', href: '/dashboard/heatmap', icon: FireIcon },
+        {
         name: 'Non-Life', 
         href: '/non-life', 
         icon: UserGroupIcon,
@@ -283,8 +286,6 @@ export default function SharedLayout({
         { name: 'My Documents', href: '/my-documents', icon: DocumentTextIcon },
         { name: 'Currency Convertor', href: '/currency-convertor', icon: BanknotesIcon },
         { name: 'Learning Portal', href: '/learning-portal', icon: AcademicCapIcon },
-        { name: 'Profile', href: '/profile', icon: UserCircleIcon },
-        { name: 'Settings', href: '/settings', icon: Cog6ToothIcon }
       ];
     } else {
       // Default/fallback navigation (when role not determined)
@@ -334,6 +335,7 @@ export default function SharedLayout({
           },
         ],
       })
+      nav.splice(2, 0, { name: 'Heatmaps', href: '/dashboard/heatmap', icon: FireIcon })
     }
     
     // Add Profile and Settings at the end for all roles

@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useRef, ChangeEvent } from 'react'
-import { uploadFileToS3, getSignedS3Url } from '@/lib/aws'
 import { logger } from '@/lib/logger'
 import { useUser } from '@/context/UserContext'
 
@@ -13,6 +12,8 @@ interface DocumentUploadProps {
   onFileUploaded?: (fileData: FileUploadResult) => void;
   multiple?: boolean;
   className?: string;
+  /** When set, the hidden file input uses this id so other buttons can trigger it via click(). */
+  fileInputId?: string;
 }
 
 export interface UploadedFileData {
@@ -46,7 +47,8 @@ export default function DocumentUpload({
   maxSizeMB = DEFAULT_MAX_SIZE_MB,
   onFileUploaded,
   multiple = false,
-  className = ''
+  className = '',
+  fileInputId
 }: DocumentUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -65,12 +67,7 @@ export default function DocumentUpload({
     setUploadProgress(0);
     
     try {
-      // Check AWS credentials
-      if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
-        throw new Error('AWS credentials are not configured. Please contact your administrator.');
-      }
-
-      // Process each file
+      // Process each file (upload runs on the server via /api/documents/upload)
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         
@@ -94,43 +91,64 @@ export default function DocumentUpload({
           continue;
         }
         
-        // Generate key for S3
-        const timestamp = Date.now();
-        const cleanFileName = file.name.replace(/[^a-zA-Z0-9-.]/g, '_');
-        const key = folderPath 
-          ? `${folderPath}/${timestamp}-${cleanFileName}` 
-          : `${timestamp}-${cleanFileName}`;
-        
-        // Read file as buffer
-        const buffer = await file.arrayBuffer();
-        
-        // Upload to S3
-        logger.info('Uploading file to S3', {
+        const objectUrl = URL.createObjectURL(file);
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('bucketName', bucketName);
+        formData.append('folderPath', folderPath);
+
+        logger.info('Uploading file via API', {
           context: 'DOCUMENT_UPLOAD',
           data: {
             fileName: file.name,
             fileType: file.type,
             fileSize: file.size,
             bucketName,
-            key
-          }
+            folderPath,
+          },
         });
-        
-        const uploadResult = await uploadFileToS3(
-          bucketName,
-          key,
-          Buffer.from(buffer),
-          file.type
-        );
-        
-        if (uploadResult.success) {
+
+        const res = await fetch('/api/documents/upload', {
+          method: 'POST',
+          body: formData,
+        });
+        const payload = (await res.json()) as {
+          success?: boolean;
+          key?: string;
+          name?: string;
+          type?: string;
+          size?: number;
+          url?: string | null;
+          error?: string;
+        };
+
+        if (!res.ok || !payload.success) {
+          URL.revokeObjectURL(objectUrl);
+          const errorMsg = payload.error || `Failed to upload: ${file.name}`;
+          setError(errorMsg);
+          if (onFileUploaded) {
+            onFileUploaded({ error: errorMsg } as FileUploadResult);
+          }
+          logger.error('Document upload API failed', {
+            context: 'DOCUMENT_UPLOAD',
+            data: { fileName: file.name, status: res.status, error: payload.error },
+          });
+          continue;
+        }
+
+        const resolvedUrl = payload.url || objectUrl;
+        if (payload.url) {
+          URL.revokeObjectURL(objectUrl);
+        }
+
+        if (payload.key) {
           const fileData: UploadedFileData = {
-            key,
-            name: file.name,
-            type: file.type,
-            size: file.size,
-            url: uploadResult.url as string,
-            uploadedAt: new Date()
+            key: payload.key,
+            name: payload.name ?? file.name,
+            type: payload.type ?? file.type,
+            size: payload.size ?? file.size,
+            url: resolvedUrl,
+            uploadedAt: new Date(),
           };
           
           setUploadedFiles(prev => [...prev, fileData]);
@@ -138,24 +156,10 @@ export default function DocumentUpload({
           if (onFileUploaded) {
             onFileUploaded(fileData);
           }
-          
-          // Log successful upload
+
           logger.trackUserAction('DOCUMENT_UPLOADED', userName || undefined, {
             fileType: file.type,
-            fileSize: file.size
-          });
-        } else {
-          const errorMsg = `Failed to upload: ${file.name}`;
-          setError(errorMsg);
-          if (onFileUploaded) {
-            onFileUploaded({ error: errorMsg } as FileUploadResult);
-          }
-          logger.error('S3 upload failed', {
-            context: 'DOCUMENT_UPLOAD',
-            data: {
-              fileName: file.name,
-              error: uploadResult.error
-            }
+            fileSize: file.size,
           });
         }
         
@@ -208,6 +212,7 @@ export default function DocumentUpload({
       <div className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
         <input
           type="file"
+          id={fileInputId}
           ref={fileInputRef}
           onChange={handleFileChange}
           className="hidden"

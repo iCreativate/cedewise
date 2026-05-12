@@ -3,6 +3,9 @@ import CredentialsProvider from 'next-auth/providers/credentials'
 import { prisma } from '@/lib/prisma'
 
 const handler = NextAuth({
+  secret:
+    process.env.NEXTAUTH_SECRET ||
+    (process.env.NODE_ENV !== 'production' ? 'cedewise-dev-nextauth-secret-not-for-production' : undefined),
   providers: [
     CredentialsProvider({
       name: 'Credentials',
@@ -15,26 +18,31 @@ const handler = NextAuth({
           return null
         }
 
-        const user = await prisma.user.findUnique({
-          where: {
-            email: credentials.email,
-          },
-        })
+        try {
+          const user = await prisma.user.findUnique({
+            where: {
+              email: credentials.email,
+            },
+          })
 
-        if (!user) {
+          if (!user) {
+            return null
+          }
+
+          // In a real application, you would hash the password and compare it
+          if (credentials.password !== user.password) {
+            return null
+          }
+
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+          }
+        } catch (err) {
+          console.error('[next-auth] authorize database error:', err)
           return null
-        }
-
-        // In a real application, you would hash the password and compare it
-        if (credentials.password !== user.password) {
-          return null
-        }
-
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
         }
       }
     })

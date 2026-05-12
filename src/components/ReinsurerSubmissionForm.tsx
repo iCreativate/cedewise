@@ -5,6 +5,7 @@ import { Tab } from '@headlessui/react';
 import { PaperAirplaneIcon, DocumentArrowDownIcon, DocumentIcon } from '@heroicons/react/24/outline';
 import { useParams } from 'next/navigation';
 import Chat from '@/components/Chat';
+import DocumentUpload from '@/components/DocumentUpload';
 
 interface Message {
   id: number;
@@ -69,6 +70,9 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
   const chatSubmissionId = String(
     brokerNonPropSubmission?.policyReferenceNumber ?? routeId ?? 'unknown'
   );
+  const proportionalDocFolder = `reinsurer-facultative/proportional/${routeId ?? 'submission'}`;
+  const nonProportionalDocFolder = `reinsurer-facultative/non-proportional/${routeId ?? 'submission'}/documents`;
+  const nonProportionalQuoteSupportingFolder = `reinsurer-facultative/non-proportional/${routeId ?? 'submission'}/quote-supporting`;
 
   const handleProposeNewValues = () => {
     setIsProposingNewValues(true);
@@ -1011,6 +1015,9 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
                             </div>
                             <button
                               type="button"
+                              onClick={() =>
+                                document.getElementById('reinsurer-fac-document-input-prop')?.click()
+                              }
                               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                             >
                               <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1053,21 +1060,15 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
                             {/* Upload Section */}
                             <div className="bg-gray-50 rounded-lg p-6">
                               <h4 className="text-base font-medium text-gray-900 mb-4">Upload New Document</h4>
-                              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                                <div className="mx-auto flex justify-center">
-                                  <svg className="h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                                  </svg>
-                                </div>
-                                <p className="mt-1 text-sm text-gray-600">Upload files or drag and drop</p>
-                                <p className="mt-1 text-xs text-gray-500">PDF, DOCX, XLSX up to 10MB</p>
-                                <button
-                                  type="button"
-                                  className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-blue-600 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                                >
-                                  Upload files
-                                </button>
-                              </div>
+                              <DocumentUpload
+                                fileInputId="reinsurer-fac-document-input-prop"
+                                bucketName="cedewise-documents"
+                                folderPath={proportionalDocFolder}
+                                multiple
+                              />
+                              <p className="mt-2 text-xs text-gray-500">
+                                PDF, Word, Excel, images up to 10MB each
+                              </p>
                             </div>
                           </div>
                         </div>
@@ -2092,21 +2093,15 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
 
                             <div className="mt-8">
                               <label className="block text-sm font-medium text-gray-700 mb-2">Supporting Documents</label>
-                              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                                <div className="mx-auto flex justify-center">
-                                  <svg className="h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                                  </svg>
-                                </div>
-                                <p className="mt-1 text-sm text-gray-600">Upload files or drag and drop</p>
-                                <p className="mt-1 text-xs text-gray-500">PDF, DOCX, XLSX up to 10MB</p>
-                                <button
-                                  type="button"
-                                  className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-blue-600 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                                >
-                                  Upload files
-                                </button>
-                              </div>
+                              <DocumentUpload
+                                fileInputId="reinsurer-fac-supporting-nonprop"
+                                bucketName="cedewise-documents"
+                                folderPath={nonProportionalQuoteSupportingFolder}
+                                multiple
+                              />
+                              <p className="mt-2 text-xs text-gray-500">
+                                PDF, Word, Excel, images up to 10MB each
+                              </p>
                             </div>
 
                             <div className="mt-8 flex justify-end space-x-3">
@@ -2135,6 +2130,9 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
                               <h3 className="text-lg font-medium text-gray-900">Documents</h3>
                               <button
                                 type="button"
+                                onClick={() =>
+                                  document.getElementById('reinsurer-fac-document-input-nonprop')?.click()
+                                }
                                 className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
                               >
                                 <DocumentArrowDownIcon className="h-5 w-5 mr-2" />
@@ -2160,6 +2158,18 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
                                   </button>
                                 </div>
                               ))}
+                            </div>
+                            <div className="mt-8 border-t border-gray-200 pt-6">
+                              <h4 className="text-base font-medium text-gray-900 mb-4">Upload New Document</h4>
+                              <DocumentUpload
+                                fileInputId="reinsurer-fac-document-input-nonprop"
+                                bucketName="cedewise-documents"
+                                folderPath={nonProportionalDocFolder}
+                                multiple
+                              />
+                              <p className="mt-2 text-xs text-gray-500">
+                                PDF, Word, Excel, images up to 10MB each
+                              </p>
                             </div>
                           </div>
                         </div>

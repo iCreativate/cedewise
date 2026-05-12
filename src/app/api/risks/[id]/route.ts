@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { isPrismaUnavailableError } from '@/lib/db-errors'
 
 const VALID_STATUSES = ['DRAFT', 'SUBMITTED', 'UNDER_REVIEW', 'ACCEPTED', 'REJECTED', 'BOUND'] as const
 
@@ -36,6 +37,12 @@ export async function PATCH(
     return NextResponse.json(risk)
   } catch (error) {
     console.error('Error updating risk:', error)
+    if (isPrismaUnavailableError(error)) {
+      return NextResponse.json(
+        { error: 'Database is not configured or unreachable. Set DATABASE_URL in .env.' },
+        { status: 503 }
+      )
+    }
     return NextResponse.json(
       { error: 'Error updating risk' },
       { status: 500 }
@@ -70,6 +77,9 @@ export async function GET(
     return NextResponse.json(risk)
   } catch (error) {
     console.error('Error fetching risk:', error)
+    if (isPrismaUnavailableError(error)) {
+      return NextResponse.json({ error: 'Risk service unavailable' }, { status: 503 })
+    }
     return NextResponse.json(
       { error: 'Error fetching risk' },
       { status: 500 }

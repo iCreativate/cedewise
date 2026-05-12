@@ -1,3 +1,6 @@
+/* Leaflet must load before @tailwind — @import after other rules is invalid and can be dropped. */
+@import "leaflet/dist/leaflet.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -6,13 +9,6 @@
   --foreground-rgb: 0, 0, 0;
   --background-start-rgb: 214, 219, 220;
   --background-end-rgb: 255, 255, 255;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -25,5 +21,18 @@
 body {
   color: rgb(var(--foreground-rgb));
   background: rgb(var(--background-end-rgb));
-  font-family: Arial, Helvetica, sans-serif;
+  /* Font comes from `next/font` (Inter) on <body> in layout.tsx — do not override or preloaded woff2 shows as "unused". */
+}
+
+/*
+  Tailwind Preflight (in @tailwind base) sets img { max-width: 100%; height: auto }.
+  That breaks Leaflet raster tiles. Keep this block last in this file so it wins in the cascade.
+*/
+.leaflet-container img.leaflet-tile,
+.leaflet-container .leaflet-tile-container img,
+.leaflet-container .leaflet-image-layer,
+.leaflet-container .leaflet-pane > svg,
+.leaflet-container .leaflet-marker-icon,
+.leaflet-container .leaflet-marker-shadow {
+  max-width: none !important;
 }

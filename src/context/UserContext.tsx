@@ -26,61 +26,64 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [brokerCompany, setBrokerCompany] = useState<string | null>(null)
   const [brokerEmail, setBrokerEmail] = useState<string | null>(null)
   const [brokerPhone, setBrokerPhone] = useState<string | null>(null)
-  const [isInitialized, setIsInitialized] = useState(false)
 
-  // Check for existing login session on mount
+  // Restore session without blocking the app tree — gating children caused infinite
+  // "Loading Cedewise" when hydration was slow, failed, or SSR never flipped client state.
   useEffect(() => {
     const initializeUser = () => {
       try {
-        // Check cookies first (for server-side consistency)
         const cookieRole = Cookies.get('userRole') as UserRole | undefined
         const cookieName = Cookies.get('userName')
         const cookieBrokerCompany = Cookies.get('brokerCompany')
         const cookieBrokerEmail = Cookies.get('brokerEmail')
         const cookieBrokerPhone = Cookies.get('brokerPhone')
-        
-        // Check localStorage as fallback
-        const storedRole = localStorage.getItem('userRole')
-        const storedName = localStorage.getItem('userName')
-        const storedBrokerCompany = localStorage.getItem('brokerCompany')
-        const storedBrokerEmail = localStorage.getItem('brokerEmail')
-        const storedBrokerPhone = localStorage.getItem('brokerPhone')
-        
-        console.log('UserContext: Checking auth state...', { cookieRole, storedRole, cookieName, storedName })
-        
-        // Use cookie values if available, otherwise use localStorage
+
+        let storedRole: string | null = null
+        let storedName: string | null = null
+        let storedBrokerCompany: string | null = null
+        let storedBrokerEmail: string | null = null
+        let storedBrokerPhone: string | null = null
+        try {
+          storedRole = localStorage.getItem('userRole')
+          storedName = localStorage.getItem('userName')
+          storedBrokerCompany = localStorage.getItem('brokerCompany')
+          storedBrokerEmail = localStorage.getItem('brokerEmail')
+          storedBrokerPhone = localStorage.getItem('brokerPhone')
+        } catch {
+          /* private mode / storage disabled */
+        }
+
         const role = cookieRole || (storedRole as UserRole) || null
         const name = cookieName || storedName
         const company = cookieBrokerCompany || storedBrokerCompany
         const email = cookieBrokerEmail || storedBrokerEmail
         const phone = cookieBrokerPhone || storedBrokerPhone
-        
+
         if (role) {
-          // Update state
           setUserRole(role)
           setUserName(name)
           setBrokerCompany(company)
           setBrokerEmail(email)
           setBrokerPhone(phone)
           setIsAuthenticated(true)
-          
-          // Ensure both storage mechanisms are in sync
-          localStorage.setItem('userRole', role)
-          localStorage.setItem('userName', name || '')
-          if (role === 'broker') {
-            localStorage.setItem('brokerCompany', company || 'Marsh Insurance Brokers')
-            localStorage.setItem('brokerEmail', email || 'contact@marshbrokers.com')
-            localStorage.setItem('brokerPhone', phone || '+27 11 123 4567')
-            Cookies.set('brokerCompany', company || 'Marsh Insurance Brokers', { path: '/' })
-            Cookies.set('brokerEmail', email || 'contact@marshbrokers.com', { path: '/' })
-            Cookies.set('brokerPhone', phone || '+27 11 123 4567', { path: '/' })
+
+          try {
+            localStorage.setItem('userRole', role)
+            localStorage.setItem('userName', name || '')
+            if (role === 'broker') {
+              localStorage.setItem('brokerCompany', company || 'Marsh Insurance Brokers')
+              localStorage.setItem('brokerEmail', email || 'contact@marshbrokers.com')
+              localStorage.setItem('brokerPhone', phone || '+27 11 123 4567')
+              Cookies.set('brokerCompany', company || 'Marsh Insurance Brokers', { path: '/' })
+              Cookies.set('brokerEmail', email || 'contact@marshbrokers.com', { path: '/' })
+              Cookies.set('brokerPhone', phone || '+27 11 123 4567', { path: '/' })
+            }
+            Cookies.set('userRole', role, { path: '/' })
+            Cookies.set('userName', name || '', { path: '/' })
+          } catch {
+            /* persistence optional */
           }
-          Cookies.set('userRole', role, { path: '/' })
-          Cookies.set('userName', name || '', { path: '/' })
-          
-          console.log('UserContext: Auth state restored', { role, name, company })
         } else {
-          console.log('UserContext: No auth state found')
           setIsAuthenticated(false)
           setUserRole(null)
           setUserName(null)
@@ -90,11 +93,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
         }
       } catch (error) {
         console.error('Error initializing user context:', error)
-      } finally {
-        setIsInitialized(true)
       }
     }
-    
+
     initializeUser()
   }, [])
 
@@ -202,14 +203,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       brokerEmail,
       brokerPhone
     }}>
-      {isInitialized ? children : (
-        <div className="flex h-screen items-center justify-center bg-gray-100">
-          <div className="text-center">
-            <h1 className="text-xl font-semibold text-gray-800">Loading Cedewise...</h1>
-            <p className="mt-2 text-gray-600">Initializing user session...</p>
-          </div>
-        </div>
-      )}
+      {children}
     </UserContext.Provider>
   )
 }

@@ -1,5 +1,5 @@
 // Service Worker for Cedewise App
-const CACHE_NAME = 'cedewise-cache-v1';
+const CACHE_NAME = 'cedewise-cache-v4';
 const URLS_TO_CACHE = [
   '/',
   '/index.html',
@@ -43,21 +43,38 @@ self.addEventListener('activate', (event) => {
 
 // Fetch event
 self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+
+  // Next.js chunks & HMR must never be served from a stale SW cache — that causes ChunkLoadError
+  // (e.g. requests to /_next/static/chunks/...) and broken paths like /_next/undefined.
+  if (url.pathname.startsWith('/_next/')) {
+    event.respondWith(
+      fetch(event.request, { cache: 'no-store' }).catch(() => fetch(event.request))
+    );
+    return;
+  }
+
   // For API calls, try network first, then fall back to cache if network fails
   if (event.request.url.includes('/api/')) {
     event.respondWith(
       fetch(event.request)
         .then((response) => {
-          // Clone the response to store in cache
-          const responseClone = response.clone();
-          caches.open(CACHE_NAME)
-            .then((cache) => {
-              cache.put(event.request, responseClone);
-            });
-          return response;
+          const ok =
+            response &&
+            response.ok &&
+            response.status === 200 &&
+            (response.type === 'basic' || response.type === 'cors')
+          if (!ok) {
+            return response
+          }
+          const responseClone = response.clone()
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseClone)
+          })
+          return response
         })
         .catch(() => {
-          return caches.match(event.request);
+          return caches.match(event.request)
         })
     );
   } else {

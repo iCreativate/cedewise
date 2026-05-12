@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 900">
+  <defs>
+    <linearGradient id="ocean" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="#050B1B"/>
+      <stop offset="1" stop-color="#020617"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="40%" r="60%">
+      <stop offset="0" stop-color="#22d3ee" stop-opacity="0.12"/>
+      <stop offset="1" stop-color="#22d3ee" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M48 0H0V48" fill="none" stroke="#ffffff" stroke-opacity="0.06" stroke-width="1"/>
+    </pattern>
+    <filter id="soft">
+      <feGaussianBlur stdDeviation="1.2"/>
+    </filter>
+  </defs>
+
+  <rect width="1400" height="900" fill="url(#ocean)"/>
+  <rect width="1400" height="900" fill="url(#grid)"/>
+  <rect width="1400" height="900" fill="url(#glow)"/>
+
+  <!-- Abstract "coastlines" / continents (stylized, not GIS-accurate) -->
+  <g fill="none" stroke="#7dd3fc" stroke-opacity="0.18" stroke-width="2">
+    <path d="M290 230c80-60 180-82 270-68 110 18 192 78 246 154 46 64 68 136 56 212-12 84-54 144-126 196-94 68-228 112-350 96-112-14-188-66-236-142-52-82-56-182-10-276 34-70 78-124 150-172Z"/>
+    <path d="M810 190c86-40 176-48 260-18 84 30 150 88 178 160 32 84 14 170-46 240-62 72-160 116-254 112-108-6-194-66-228-152-34-88-8-186 56-252 10-10 20-18 34-26Z"/>
+    <path d="M1040 630c44-26 96-32 142-10 50 22 82 68 84 118 2 50-26 94-74 122-50 28-114 32-162 6-48-26-72-76-64-126 6-46 34-84 74-110Z"/>
+  </g>
+
+  <!-- Thin "routes" / corridors -->
+  <g stroke="#22d3ee" stroke-opacity="0.16" stroke-width="1.2" fill="none" filter="url(#soft)">
+    <path d="M120 520c160-120 320-160 470-128 170 36 290 140 416 224 126 84 250 112 394 88"/>
+    <path d="M160 330c200 26 340 94 464 210 98 90 210 162 392 170 168 8 302-44 390-112"/>
+    <path d="M320 720c210-80 350-86 510-34 174 56 312 70 470 34"/>
+  </g>
+
+  <!-- Labels (very subtle) -->
+  <g fill="#e2e8f0" fill-opacity="0.22" font-family="system-ui, -apple-system, Segoe UI, Roboto" font-size="18">
+    <text x="96" y="110">CEDewise Risk Surface</text>
+    <text x="1100" y="860" text-anchor="end">Mock map background</text>
+  </g>
+</svg>
+

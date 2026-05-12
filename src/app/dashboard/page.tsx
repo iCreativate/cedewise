@@ -5,11 +5,12 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import {
   ChartBarIcon,
-  DocumentTextIcon, 
+  DocumentTextIcon,
   UserGroupIcon,
   ArrowTrendingUpIcon,
   ClockIcon,
-  DocumentCheckIcon
+  DocumentCheckIcon,
+  FireIcon,
 } from '@heroicons/react/24/outline'
 
 const StatCard = ({ title, value, icon: Icon, color }: { 
@@ -100,6 +101,14 @@ export default function DashboardPage() {
             description="Access and manage non-life reinsurance operations"
             icon={ChartBarIcon}
             color="bg-blue-500"
+          />
+
+          <NavigationCard
+            href="/dashboard/heatmap"
+            title="Risk heatmaps"
+            description="Regional concentration, Street View context, and quote-ready insured breakdowns"
+            icon={FireIcon}
+            color="bg-cyan-600"
           />
 
           {userRole === 'reinsurer' && (

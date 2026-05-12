@@ -1,12 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 
-export default function RegisterPage() {
+function RegisterForm() {
   const searchParams = useSearchParams()
-  const initialRole = searchParams?.get('role') || ''
+  const initialRole = searchParams.get('role') || ''
   
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -156,4 +156,16 @@ export default function RegisterPage() {
       </form>
     </div>
   )
-} 
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[50vh] items-center justify-center text-sm text-gray-600">Loading…</div>
+      }
+    >
+      <RegisterForm />
+    </Suspense>
+  )
+}
