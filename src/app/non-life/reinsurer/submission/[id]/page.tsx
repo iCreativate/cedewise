@@ -1,15 +1,7 @@
 'use client'
 
-import dynamic from 'next/dynamic'
 import { useParams } from 'next/navigation'
-
-const ReinsurerSubmissionForm = dynamic(() => import('@/components/ReinsurerSubmissionForm'), {
-  loading: () => (
-    <div className="flex min-h-[50vh] items-center justify-center bg-gray-50 text-sm text-gray-600">
-      Loading submission…
-    </div>
-  ),
-})
+import ReinsurerSubmissionForm from '@/components/ReinsurerSubmissionForm'
 
 const SubmissionPage = () => {
   const params = useParams()

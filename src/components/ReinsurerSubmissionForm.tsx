@@ -6,6 +6,7 @@ import { PaperAirplaneIcon, DocumentArrowDownIcon, DocumentIcon } from '@heroico
 import { useParams } from 'next/navigation';
 import Chat from '@/components/Chat';
 import DocumentUpload from '@/components/DocumentUpload';
+import { formatAmountDisplay } from '@/utils/currency';
 
 interface Message {
   id: number;
@@ -47,9 +48,27 @@ interface SubmissionFormProps {
   };
 }
 
+function submissionMatchesRoute(
+  submission: unknown,
+  routeSubmissionId: number | null,
+  facType: 'proportional' | 'non-proportional'
+): boolean {
+  if (!submission || typeof submission !== 'object' || routeSubmissionId === null) return false;
+  const sub = submission as { id?: number | string; facType?: string };
+  const subId = typeof sub.id === 'string' ? Number.parseInt(sub.id, 10) : sub.id;
+  if (!Number.isFinite(subId as number) || subId !== routeSubmissionId) return false;
+  if (sub.facType && sub.facType !== facType) return false;
+  return true;
+}
+
 export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormProps) {
   const params = useParams();
   const routeId = (params as any)?.id ? String((params as any).id) : null;
+  const routeSubmissionId = useMemo(() => {
+    if (!routeId) return null;
+    const n = Number.parseInt(routeId, 10);
+    return Number.isFinite(n) ? n : null;
+  }, [routeId]);
   const [selectedTab, setSelectedTab] = useState(0);
   const [showDetails, setShowDetails] = useState(false);
   const [isProposingNewValues, setIsProposingNewValues] = useState(false);
@@ -71,6 +90,7 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
     brokerNonPropSubmission?.policyReferenceNumber ?? routeId ?? 'unknown'
   );
   const proportionalDocFolder = `reinsurer-facultative/proportional/${routeId ?? 'submission'}`;
+  const proportionalQuoteSupportingFolder = `reinsurer-facultative/proportional/${routeId ?? 'submission'}/quote-supporting`;
   const nonProportionalDocFolder = `reinsurer-facultative/non-proportional/${routeId ?? 'submission'}/documents`;
   const nonProportionalQuoteSupportingFolder = `reinsurer-facultative/non-proportional/${routeId ?? 'submission'}/quote-supporting`;
 
@@ -173,34 +193,38 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
     return Number.isFinite(n) ? n : 0;
   };
 
-  // Pull broker submission from sessionStorage (set by broker non-prop FAC list "View submission")
+  // Pull submission from sessionStorage only when id + fac type match this page
   useEffect(() => {
     try {
       const raw = sessionStorage.getItem('selectedSubmission');
       if (!raw) return;
       const parsed = JSON.parse(raw);
-      setBrokerNonPropSubmission(parsed);
+      if (submissionMatchesRoute(parsed, routeSubmissionId, type)) {
+        setBrokerNonPropSubmission(parsed);
+      }
     } catch {
       // ignore
     }
-  }, []);
+  }, [routeSubmissionId, type]);
 
-  // If sessionStorage is empty (refresh/direct navigation), fall back to fetching by route id
+  // Non-proportional only: fetch by route id when sessionStorage is empty (e.g. refresh)
   useEffect(() => {
     if (brokerNonPropSubmission) return;
-    if (!routeId) return;
+    if (routeSubmissionId === null) return;
+    if (type !== 'non-proportional') return;
 
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch(`/api/broker-submissions/non-proportional-fac/${encodeURIComponent(routeId)}`, {
-          method: 'GET',
-        });
+        const res = await fetch(
+          `/api/broker-submissions/non-proportional-fac/${encodeURIComponent(String(routeSubmissionId))}`,
+          { method: 'GET' }
+        );
         if (!res.ok) return;
         const json = await res.json();
         if (cancelled) return;
         if (json && typeof json === 'object') {
-          setBrokerNonPropSubmission(json);
+          setBrokerNonPropSubmission({ ...json, id: routeSubmissionId, facType: 'non-proportional' });
         }
       } catch {
         // ignore
@@ -210,26 +234,58 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
     return () => {
       cancelled = true;
     };
-  }, [routeId, brokerNonPropSubmission]);
+  }, [routeSubmissionId, brokerNonPropSubmission, type]);
+
+  const submissionFromProps = useMemo(
+    () => ({
+      company: data.cedingCompany,
+      cedingCompany: data.cedingCompany,
+      insured: data.insuredName,
+      insuredName: data.insuredName,
+      policyReferenceNumber: data.policyReference,
+      policyNo: data.policyReference,
+      broker: data.broker,
+      brokerName: data.broker,
+      classOfBusiness: data.classOfBusiness,
+      businessOccupation: data.businessOccupation,
+      riskCountry: data.riskCountry,
+      quoteRequiredPercentage: data.quoteRequiredPercentage,
+      physicalDamage: data.physicalDamage,
+      businessInterruption: data.businessInterruption,
+      sumInsured: data.sumInsured,
+      premiumRate: data.premiumRate,
+      premiumAmount: data.premiumAmount,
+      remainingShare: data.remainingShare,
+      startDate: data.startDate,
+      endDate: data.endDate,
+      description: data.description,
+    }),
+    [data]
+  );
+
+  /** Merged submission: sessionStorage/API overrides props defaults. */
+  const effectiveSubmission = useMemo(
+    () => ({ ...submissionFromProps, ...(brokerNonPropSubmission ?? {}) }),
+    [submissionFromProps, brokerNonPropSubmission]
+  );
 
   // My Quote defaults: Layer = Sum Insured, In excess = Excess Layer (from Main Submission)
   useEffect(() => {
-    if (!brokerNonPropSubmission) return;
-    if (!layer && brokerNonPropSubmission.sumInsured) {
-      setLayer(formatCurrencySpaces(String(brokerNonPropSubmission.sumInsured)));
+    if (!layer && effectiveSubmission?.sumInsured) {
+      setLayer(formatCurrencySpaces(String(effectiveSubmission.sumInsured)));
     }
-    if (!excessOf && brokerNonPropSubmission.excessLayer) {
-      setExcessOf(formatCurrencySpaces(String(brokerNonPropSubmission.excessLayer)));
+    if (!excessOf && effectiveSubmission.excessLayer) {
+      setExcessOf(formatCurrencySpaces(String(effectiveSubmission.excessLayer)));
     }
     // only prefill when empty, so user can still edit freely
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [brokerNonPropSubmission]);
+  }, [effectiveSubmission]);
 
   const layerAmount = useMemo(() => {
     // Prefer user-entered layer amount; fallback to sumInsured.
     const manual = parseNumber(layer);
-    return manual || (data?.sumInsured ?? 0);
-  }, [data?.sumInsured, layer]);
+    return manual || (effectiveSubmission?.sumInsured ?? 0);
+  }, [effectiveSubmission?.sumInsured, layer]);
 
   const shareOfferPct = useMemo(() => {
     const pct = parseNumber(shareOffer);
@@ -274,6 +330,31 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
   const totalDeductions = useMemo(() => {
     return (parseNumber(commission) + parseNumber(overrider) + parseNumber(brokerage)).toFixed(2);
   }, [commission, overrider, brokerage]);
+
+  const sumInsuredDisplay = useMemo(() => {
+    const amount = effectiveSubmission?.sumInsured;
+    if (amount === null || amount === undefined || amount === '') return '';
+    return formatAmountDisplay(amount);
+  }, [effectiveSubmission?.sumInsured]);
+
+  const sumInsuredFormatted = sumInsuredDisplay ? `R ${sumInsuredDisplay}` : '';
+
+  const physicalDamageDisplay = useMemo(() => {
+    const amount = effectiveSubmission?.physicalDamage;
+    if (amount === null || amount === undefined || amount === '') return '';
+    return formatAmountDisplay(amount);
+  }, [effectiveSubmission?.physicalDamage]);
+
+  const businessInterruptionDisplay = useMemo(() => {
+    const amount = effectiveSubmission?.businessInterruption;
+    if (amount === null || amount === undefined || amount === '') return '';
+    return formatAmountDisplay(amount);
+  }, [effectiveSubmission?.businessInterruption]);
+
+  const physicalDamageFormatted = physicalDamageDisplay ? `R ${physicalDamageDisplay}` : '';
+  const businessInterruptionFormatted = businessInterruptionDisplay
+    ? `R ${businessInterruptionDisplay}`
+    : '';
 
   useEffect(() => {
     if (deductionsPreset === 'option1') {
@@ -542,8 +623,8 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
                                   <label className="block text-sm font-medium text-gray-700 mb-1">Physical Damage</label>
                                   <input
                                     type="text"
-                                    defaultValue="R 120,000,000"
-                                    disabled
+                                    value={physicalDamageFormatted}
+                                    readOnly
                                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-500 sm:text-sm"
                                   />
                                 </div>
@@ -551,8 +632,8 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
                                   <label className="block text-sm font-medium text-gray-700 mb-1">Business Interruption</label>
                                   <input
                                     type="text"
-                                    defaultValue="R 47,000,000"
-                                    disabled
+                                    value={businessInterruptionFormatted}
+                                    readOnly
                                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-500 sm:text-sm"
                                   />
                                 </div>
@@ -560,8 +641,8 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
                                   <label className="block text-sm font-medium text-gray-700 mb-1">Sum Insured</label>
                                   <input
                                     type="text"
-                                    defaultValue="R 167,000,000"
-                                    disabled
+                                    value={sumInsuredFormatted}
+                                    readOnly
                                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-500 sm:text-sm"
                                   />
                                 </div>
@@ -619,42 +700,30 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
                               <div className="grid grid-cols-3 gap-6">
                                 <div>
                                   <label className="block text-sm font-medium text-gray-700 mb-1">Physical Damage</label>
-                                  <div className="mt-1 relative">
-                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                      <span className="text-gray-500 sm:text-sm">R</span>
-                                    </div>
-                                    <input
-                                      type="number"
-                                      defaultValue="1200000000"
-                                      className="mt-1 block w-full pl-7 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                                    />
-                                  </div>
+                                  <input
+                                    type="text"
+                                    value={physicalDamageFormatted}
+                                    readOnly
+                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm"
+                                  />
                                 </div>
                                 <div>
                                   <label className="block text-sm font-medium text-gray-700 mb-1">Business Interruption</label>
-                                  <div className="mt-1 relative">
-                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                      <span className="text-gray-500 sm:text-sm">R</span>
-                                    </div>
-                                    <input
-                                      type="number"
-                                      defaultValue="470000000"
-                                      className="mt-1 block w-full pl-7 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                                    />
-                                  </div>
+                                  <input
+                                    type="text"
+                                    value={businessInterruptionFormatted}
+                                    readOnly
+                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm"
+                                  />
                                 </div>
                                 <div>
                                   <label className="block text-sm font-medium text-gray-700 mb-1">Sum Insured</label>
-                                  <div className="mt-1 relative">
-                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                      <span className="text-gray-500 sm:text-sm">R</span>
-                                    </div>
-                                    <input
-                                      type="number"
-                                      defaultValue="1670000000"
-                                      className="mt-1 block w-full pl-7 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                                    />
-                                  </div>
+                                  <input
+                                    type="text"
+                                    value={sumInsuredFormatted}
+                                    readOnly
+                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm"
+                                  />
                                 </div>
                                 <div>
                                   <label className="block text-sm font-medium text-gray-700 mb-1">Remaining Share (%)</label>
@@ -749,7 +818,7 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
                       <Tab.Panel className="p-6">
                         <div className="space-y-6">
                           <div className="bg-white p-6 rounded-lg border border-gray-200">
-                            <h3 className="text-lg font-medium text-gray-900 mb-4">Emeritas Re's Quote</h3>
+                            <h3 className="text-lg font-medium text-gray-900 mb-4">Emeritus Re's Quote</h3>
                             <p className="text-sm text-gray-600 mb-6">Provide your proposal for this proportional facultative submission</p>
 
                             <div className="grid grid-cols-2 gap-6">
@@ -776,7 +845,7 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
                               <div>
                                 <label className="block text-sm font-medium text-gray-700">Sum Insured Amount</label>
                                 <div className="mt-1 bg-gray-50 p-3 rounded-md border border-gray-200">
-                                  {String(data?.sumInsured ?? '').toLocaleString()} {String((data as any)?.currency ?? '')}
+                                  {sumInsuredFormatted || '—'}
                                 </div>
                               </div>
 
@@ -1001,6 +1070,85 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
                                 </svg>
                               </button>
                             </div>
+
+                            {showQuoteDetails && (
+                              <div className="mt-6 bg-gray-50 rounded-lg border border-gray-200 p-6">
+                                <h4 className="text-sm font-semibold text-gray-900 mb-4">Deductions breakdown</h4>
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700">Commission (%)</label>
+                                    <input
+                                      type="text"
+                                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                      value={commission}
+                                      onChange={(e) => setCommission(e.target.value)}
+                                      disabled={!isProposingNewValues}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700">Overrider (%)</label>
+                                    <input
+                                      type="text"
+                                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                      value={overrider}
+                                      onChange={(e) => setOverrider(e.target.value)}
+                                      disabled={!isProposingNewValues}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700">Brokerage (%)</label>
+                                    <input
+                                      type="text"
+                                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                      value={brokerage}
+                                      onChange={(e) => setBrokerage(e.target.value)}
+                                      disabled={!isProposingNewValues}
+                                    />
+                                  </div>
+                                </div>
+                                <div className="mt-4 text-sm text-gray-700">
+                                  Total deductions: <span className="font-semibold">{totalDeductions}%</span>
+                                </div>
+                              </div>
+                            )}
+
+                            <div className="mt-8">
+                              <label className="block text-sm font-medium text-gray-700">Quote Conditions & Comments</label>
+                              <textarea
+                                rows={4}
+                                className="mt-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                placeholder="Enter any conditions or comments related to your quote..."
+                              />
+                            </div>
+
+                            <div className="mt-8">
+                              <label className="block text-sm font-medium text-gray-700 mb-2">Supporting Documents</label>
+                              <DocumentUpload
+                                fileInputId="reinsurer-fac-supporting-prop"
+                                bucketName="cedewise-documents"
+                                folderPath={proportionalQuoteSupportingFolder}
+                                multiple
+                              />
+                              <p className="mt-2 text-xs text-gray-500">
+                                PDF, Word, Excel, images up to 10MB each
+                              </p>
+                            </div>
+
+                            <div className="mt-8 flex justify-end space-x-3">
+                              <button
+                                type="button"
+                                className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                              >
+                                Save Draft
+                              </button>
+                              <button
+                                type="button"
+                                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                              >
+                                Submit Quote
+                              </button>
+                            </div>
+
                           </div>
                         </div>
                       </Tab.Panel>
@@ -1235,7 +1383,7 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
                                 <div>
                                   <label className="block text-sm font-medium text-gray-700 mb-1">Sum Insured</label>
                                   <div className="mt-1 bg-gray-100 p-3 rounded-md border border-gray-200">
-                                    R 1,670,000,000 USD
+                                    {sumInsuredFormatted || '—'}
                                   </div>
                                 </div>
                                 <div>
@@ -1576,7 +1724,7 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
                                   <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Physical Damage</label>
                                     <input
-                                      value={brokerNonPropSubmission.physicalDamage ?? ''}
+                                      value={physicalDamageDisplay}
                                       readOnly
                                       className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm"
                                     />
@@ -1585,7 +1733,7 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
                                   <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Business Interruption - Loss of Profits</label>
                                     <input
-                                      value={brokerNonPropSubmission.businessInterruption ?? ''}
+                                      value={businessInterruptionDisplay}
                                       readOnly
                                       className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm"
                                     />
@@ -1594,7 +1742,7 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
                                   <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Sum Insured (Total)</label>
                                     <input
-                                      value={brokerNonPropSubmission.sumInsured ?? ''}
+                                      value={sumInsuredDisplay}
                                       readOnly
                                       className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 text-gray-700 sm:text-sm"
                                     />
@@ -1743,7 +1891,7 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
                       <Tab.Panel className="p-6">
                         <div className="space-y-6">
                           <div className="bg-white p-6 rounded-lg border border-gray-200">
-                            <h3 className="text-lg font-medium text-gray-900 mb-4">Emeritas Re's Quote</h3>
+                            <h3 className="text-lg font-medium text-gray-900 mb-4">Emeritus Re's Quote</h3>
                             <p className="text-sm text-gray-600 mb-6">Provide your proposal for this non-proportional reinsurance submission</p>
                             
                             <div className="grid grid-cols-2 gap-6">
@@ -1767,7 +1915,7 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
                               <div>
                                 <label className="block text-sm font-medium text-gray-700">Sum Insured Amount</label>
                                 <div className="mt-1 bg-gray-50 p-3 rounded-md border border-gray-200">
-                                  R 1,670,000,000 USD
+                                  {sumInsuredFormatted || '—'}
                                 </div>
                               </div>
 
@@ -2332,7 +2480,7 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
                                   <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Sum Insured</label>
                                     <div className="mt-1 bg-gray-100 p-3 rounded-md border border-gray-200">
-                                      R 1,670,000,000 USD
+                                      {sumInsuredFormatted || '—'}
                                     </div>
                                   </div>
                                   <div>

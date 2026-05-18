@@ -120,6 +120,18 @@ const BrokerSubmissionRow: React.FC<BrokerSubmissionRowProps> = ({ submission, t
   }, []);
 
   const handleRowClick = () => {
+    try {
+      sessionStorage.setItem(
+        'selectedSubmission',
+        JSON.stringify({
+          ...submission,
+          id: submission.id,
+          facType: type === 'proportional' ? 'proportional' : 'non-proportional',
+        })
+      );
+    } catch {
+      // ignore quota / private mode errors
+    }
     router.push(`/non-life/reinsurer/submission/${submission.id}`);
   };
 

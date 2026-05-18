@@ -81,7 +81,7 @@ const constructionTypeOptions = [
 export default function NonProportionalFacultativeReinsurancePage() {
   const router = useRouter()
   const { userRole, userName } = useUser()
-  const [reinsuranceCompany] = useState('Emeritas Re')
+  const [reinsuranceCompany] = useState('Emeritus Re')
   
   // Fields that reinsurers can edit
   const reinsurerEditableFields = [
