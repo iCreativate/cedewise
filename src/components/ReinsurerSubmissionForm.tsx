@@ -749,7 +749,7 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
                       <Tab.Panel className="p-6">
                         <div className="space-y-6">
                           <div className="bg-white p-6 rounded-lg border border-gray-200">
-                            <h3 className="text-lg font-medium text-gray-900 mb-4">Munich Re's Quote</h3>
+                            <h3 className="text-lg font-medium text-gray-900 mb-4">Emeritas Re's Quote</h3>
                             <p className="text-sm text-gray-600 mb-6">Provide your proposal for this proportional facultative submission</p>
 
                             <div className="grid grid-cols-2 gap-6">
@@ -1743,7 +1743,7 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
                       <Tab.Panel className="p-6">
                         <div className="space-y-6">
                           <div className="bg-white p-6 rounded-lg border border-gray-200">
-                            <h3 className="text-lg font-medium text-gray-900 mb-4">Munich Re's Quote</h3>
+                            <h3 className="text-lg font-medium text-gray-900 mb-4">Emeritas Re's Quote</h3>
                             <p className="text-sm text-gray-600 mb-6">Provide your proposal for this non-proportional reinsurance submission</p>
                             
                             <div className="grid grid-cols-2 gap-6">

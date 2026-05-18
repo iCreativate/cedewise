@@ -28,7 +28,7 @@ const ratingOptions = [
 // Sample reinsurer data - replace with actual data from your backend
 const sampleReinsurers = [
   { id: 1, name: 'Swiss Re', rating: 'A' },
-  { id: 2, name: 'Munich Re', rating: 'A' },
+  { id: 2, name: 'Emeritas Re', rating: 'A' },
   { id: 3, name: 'Hannover Re', rating: 'A' },
   { id: 4, name: 'SCOR', rating: 'A' },
   { id: 5, name: 'Partner Re', rating: 'A' },

@@ -35,7 +35,7 @@ const samplePlacements = [
     classOfBusiness: 'Mining',
     businessOccupation: 'Gold Mining',
     riskCountry: 'South Africa',
-    reinsurer: 'Munich Re',
+    reinsurer: 'Emeritas Re',
     placementPercentage: '50%',
     commission: '12.5%',
     premium: '1,800,000.00',

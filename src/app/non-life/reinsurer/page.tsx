@@ -56,7 +56,7 @@ const facultativeData = [
     reinsurers: [
       { name: 'Global Re', quotedShare: 50, premium: 1875000 },
       { name: 'African Re', quotedShare: 30, premium: 1125000 },
-      { name: 'Munich Re', quotedShare: 20, premium: 750000 }
+      { name: 'Emeritas Re', quotedShare: 20, premium: 750000 }
     ],
     documents: [
       'Policy Schedule.pdf',
@@ -120,7 +120,7 @@ const proportionalFacData = [
     reinsurers: [
       { name: 'Global Re', quotedShare: 25, premium: 125000000 },
       { name: 'African Re', quotedShare: 15, premium: 75000000 },
-      { name: 'Munich Re', quotedShare: 30, premium: 150000000 }
+      { name: 'Emeritas Re', quotedShare: 30, premium: 150000000 }
     ],
     documents: [
       'Loss History.pdf',

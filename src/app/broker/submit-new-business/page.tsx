@@ -44,7 +44,7 @@ interface Reinsurer {
 }
 
 const sampleReinsurers: Reinsurer[] = [
-  { id: '1', name: 'Munich Re', rating: 'a' },
+  { id: '1', name: 'Emeritas Re', rating: 'a' },
   { id: '2', name: 'Swiss Re', rating: 'a' },
   { id: '3', name: 'Hannover Re', rating: 'a' },
   { id: '4', name: 'SCOR', rating: 'a' },

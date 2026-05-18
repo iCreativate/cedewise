@@ -8,7 +8,7 @@ export interface Reinsurer {
 
 export const reinsurers: Reinsurer[] = [
   // Global Tier 1 Reinsurers
-  { id: 'munich-re', name: 'Munich Re', rating: 'AA+', location: 'Germany', registered: true },
+  { id: 'emeritas-re', name: 'Emeritas Re', rating: 'AA+', location: 'Germany', registered: true },
   { id: 'swiss-re', name: 'Swiss Re', rating: 'AA-', location: 'Switzerland', registered: true },
   { id: 'hannover-re', name: 'Hannover Re', rating: 'AA-', location: 'Germany', registered: false },
   { id: 'scor', name: 'SCOR', rating: 'AA-', location: 'France', registered: true },
