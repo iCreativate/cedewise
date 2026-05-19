@@ -30,9 +30,12 @@ function defaultDetails(region: HeatmapPoint): RegionRiskDetail {
   const lob = region.details?.lineOfBusiness ?? 'Commercial property'
   const slug = region.label.replace(/\s+/g, '-').toLowerCase()
   return {
-    municipality: region.label,
-    province: 'Gauteng',
-    summary: `Aggregated ${intensityPct}% heat intensity for this cell under the current risk layer. Use Street View and the metrics below to sanity-check accumulation, nat-cat drivers, and local claims velocity before quoting.`,
+    municipality: region.details?.municipality ?? region.label,
+    province: region.details?.province ?? 'Gauteng',
+    summary: region.isSearchLocation
+      ? region.details?.summary ??
+        `User-selected location for quoting. Use Street View and the metrics below before binding facultative terms.`
+      : `Aggregated ${intensityPct}% heat intensity for this cell under the current risk layer. Use Street View and the metrics below to sanity-check accumulation, nat-cat drivers, and local claims velocity before quoting.`,
     predominantPerils:
       region.risk === 'Critical' || region.risk === 'High'
         ? ['Fire & allied perils', 'Business interruption', 'Theft & malicious damage']
@@ -429,7 +432,7 @@ const HeatmapRegionDetailPanel = forwardRef<
       <div ref={ref} className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 p-8 text-center">
         <p className="text-sm font-medium text-slate-700">Regional risk dossier</p>
         <p className="mt-2 text-sm text-slate-500">
-          Click any coloured hotspot on the heatmap to open a full region profile, Street View context, and quoting shortcuts.
+          Search a location anywhere in the world, or click a coloured hotspot on the map, to open a region profile, Street View, and quoting shortcuts.
         </p>
       </div>
     )
@@ -444,6 +447,11 @@ const HeatmapRegionDetailPanel = forwardRef<
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-xl font-semibold text-slate-900">{region.label}</h2>
+            {region.isSearchLocation ? (
+              <span className="inline-flex items-center rounded-full bg-cyan-100 px-2.5 py-0.5 text-xs font-semibold text-cyan-900 ring-1 ring-cyan-200">
+                Searched location
+              </span>
+            ) : null}
             <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ${riskBadgeClass(region.risk)}`}>
               {region.risk} risk
             </span>

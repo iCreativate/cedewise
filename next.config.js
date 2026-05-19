@@ -34,11 +34,11 @@ const nextConfig = {
 
     const csp = `
               default-src 'self';
-              script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:;
+              script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://maps.googleapis.com https://maps.gstatic.com;
               worker-src 'self' blob:;
               style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
               font-src 'self' https://fonts.gstatic.com;
-              img-src 'self' data: blob: https://cedewise-storage.s3.amazonaws.com https://*.basemaps.cartocdn.com https://basemaps.cartocdn.com https://*.cartocdn.com https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://a.tile.openstreetmap.org https://b.tile.openstreetmap.org https://c.tile.openstreetmap.org;
+              img-src 'self' data: blob: https://cedewise-storage.s3.amazonaws.com https://*.basemaps.cartocdn.com https://basemaps.cartocdn.com https://*.cartocdn.com https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://a.tile.openstreetmap.org https://b.tile.openstreetmap.org https://c.tile.openstreetmap.org https://maps.googleapis.com https://maps.gstatic.com https://*.googleapis.com https://*.gstatic.com;
               connect-src 'self' https://*.amazonaws.com https://nominatim.openstreetmap.org https://maps.googleapis.com https://*.basemaps.cartocdn.com https://basemaps.cartocdn.com;
               frame-src 'self' https://www.google.com https://*.google.com;
             `

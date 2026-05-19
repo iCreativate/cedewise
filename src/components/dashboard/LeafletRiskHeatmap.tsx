@@ -3,27 +3,30 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import L from 'leaflet'
 import type { HeatmapPoint } from '@/types/heatmap'
+import type { HeatmapControls, HeatmapViewport, MapFlyToTarget } from './heatmapMapTypes'
+import { zoomForRegionalRadius } from '@/lib/heatmapRegion'
 
-export type LeafletHeatmapControls = {
-  riskLayer: 'Policy Exposure' | 'Claims Density' | 'Broker Activity' | 'Regional Migration' | 'Loss Ratio'
-  timeRange: 'Today' | '7 Days' | '30 Days' | 'Quarter' | 'Year'
-  intensity: number // 25..140 (% scale)
-  radius: number // px
-  showColumns: boolean
-  showHeat: boolean
+export type LeafletHeatmapControls = HeatmapControls
+export type { MapFlyToTarget, HeatmapViewport }
+
+function fitRegionalMap(map: L.Map, pts: HeatmapPoint[], viewport: HeatmapViewport) {
+  const maxZoom = zoomForRegionalRadius(viewport.radiusKm)
+  if (pts.length >= 2) {
+    const bounds = L.latLngBounds(pts.map((p) => [p.lat, p.lng] as [number, number]))
+    map.fitBounds(bounds, { padding: [48, 48], maxZoom, animate: true })
+  } else {
+    map.setView([viewport.center.lat, viewport.center.lng], maxZoom, { animate: true })
+  }
 }
-
-const DEFAULT_CENTER: L.LatLngExpression = [-26.2041, 28.0473]
-const DEFAULT_ZOOM = 11
 
 const RISK_COLOR: Record<
   HeatmapPoint['risk'],
   { fill: string; stroke: string }
 > = {
-  Low: { fill: '#34d399', stroke: '#ecfdf5' },
-  Medium: { fill: '#facc15', stroke: '#fefce8' },
-  High: { fill: '#fb923c', stroke: '#fff7ed' },
-  Critical: { fill: '#fb7185', stroke: '#fff1f2' },
+  Low: { fill: '#34d399', stroke: '#047857' },
+  Medium: { fill: '#facc15', stroke: '#a16207' },
+  High: { fill: '#fb923c', stroke: '#c2410c' },
+  Critical: { fill: '#fb7185', stroke: '#be123c' },
 }
 
 function clamp(n: number, min: number, max: number) {
@@ -36,20 +39,31 @@ function formatMoney(n: number) {
 
 export default function LeafletRiskHeatmap({
   points,
+  viewport,
+  userLocation,
   controls,
   selectedRegion,
   onSelectRegion,
+  flyTo,
 }: {
   points: HeatmapPoint[]
+  viewport: HeatmapViewport
+  userLocation?: { lat: number; lng: number } | null
   controls: LeafletHeatmapControls
   selectedRegion: HeatmapPoint | null
   onSelectRegion: (region: HeatmapPoint | null) => void
+  flyTo?: MapFlyToTarget | null
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<L.Map | null>(null)
   const heatLayerRef = useRef<L.Layer | null>(null)
   const markersRef = useRef<L.CircleMarker[]>([])
   const resetControlRef = useRef<L.Control | null>(null)
+  const userMarkerRef = useRef<L.CircleMarker | null>(null)
+  const viewportRef = useRef(viewport)
+  viewportRef.current = viewport
+  const pointsRef = useRef(points)
+  pointsRef.current = points
 
   const [hovered, setHovered] = useState<HeatmapPoint | null>(null)
   const [mapReady, setMapReady] = useState(false)
@@ -64,6 +78,15 @@ export default function LeafletRiskHeatmap({
   selectedRef.current = selectedRegion
 
   const intensityScale = useMemo(() => clamp(controls.intensity / 100, 0.25, 1.6), [controls.intensity])
+
+  const displayPoints = useMemo(() => points, [points])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !mapReady || !flyTo) return
+    const zoom = flyTo.zoom ?? 12
+    map.flyTo([flyTo.lat, flyTo.lng], zoom, { duration: 1.2 })
+  }, [flyTo, mapReady])
 
   const active = selectedRegion ?? hovered
   const exposure = active ? Math.round(3_000_000_000 * active.intensity * intensityScale * 0.5) : null
@@ -134,9 +157,10 @@ export default function LeafletRiskHeatmap({
           ;(window as unknown as { L?: typeof L }).L = L
         }
 
+        const vp = viewportRef.current
         const map = L.map(el, {
-          center: DEFAULT_CENTER,
-          zoom: DEFAULT_ZOOM,
+          center: [vp.center.lat, vp.center.lng],
+          zoom: zoomForRegionalRadius(vp.radiusKm),
           zoomControl: false,
         })
 
@@ -146,7 +170,7 @@ export default function LeafletRiskHeatmap({
         }
         map.on('click', mapBackgroundClick)
 
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
           attribution:
             '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
           subdomains: 'abcd',
@@ -164,7 +188,7 @@ export default function LeafletRiskHeatmap({
               'bg-white/90 hover:bg-white text-slate-900 text-xs font-semibold px-3 py-2 rounded-xl shadow-sm border border-slate-200'
             L.DomEvent.disableClickPropagation(btn)
             L.DomEvent.on(btn, 'click', () => {
-              ctrlMap.setView(DEFAULT_CENTER, DEFAULT_ZOOM, { animate: true })
+              fitRegionalMap(ctrlMap, pointsRef.current, viewportRef.current)
               onSelectRef.current(null)
               setHovered(null)
             })
@@ -275,6 +299,41 @@ export default function LeafletRiskHeatmap({
     }
   }, [])
 
+  // Fit map to regional hotspots when viewport or points change
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !mapReady) return
+    try {
+      fitRegionalMap(map, points, viewport)
+    } catch {
+      map.setView([viewport.center.lat, viewport.center.lng], zoomForRegionalRadius(viewport.radiusKm))
+    }
+  }, [mapReady, viewport.key, points.length, viewport.center.lat, viewport.center.lng])
+
+  // User geolocation marker
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !mapReady) return
+    if (userMarkerRef.current) {
+      userMarkerRef.current.remove()
+      userMarkerRef.current = null
+    }
+    if (!userLocation) return
+    const marker = L.circleMarker([userLocation.lat, userLocation.lng], {
+      radius: 10,
+      color: '#0284c7',
+      weight: 3,
+      fillColor: '#38bdf8',
+      fillOpacity: 0.9,
+      interactive: false,
+    })
+    marker.addTo(map)
+    userMarkerRef.current = marker
+    return () => {
+      marker.remove()
+    }
+  }, [mapReady, userLocation?.lat, userLocation?.lng])
+
   // Load leaflet.heat after the map exists so tiles/markers are not blocked by chunk load.
   useEffect(() => {
     if (!mapReady) return
@@ -326,9 +385,9 @@ export default function LeafletRiskHeatmap({
       return
     }
 
-    const heatPoints = points.map(
-      (p) => [p.lat, p.lng, clamp(p.intensity * intensityScale, 0, 1)] as [number, number, number]
-    )
+    const heatPoints = displayPoints
+      .filter((p) => !p.isSearchLocation)
+      .map((p) => [p.lat, p.lng, clamp(p.intensity * intensityScale, 0, 1)] as [number, number, number])
     const layer = heatLayerFn(heatPoints, {
       radius: controls.radius,
       blur: Math.round(controls.radius * 0.85),
@@ -357,7 +416,7 @@ export default function LeafletRiskHeatmap({
         }
       })
     })
-  }, [mapReady, heatPluginReady, points, controls.showHeat, controls.radius, intensityScale])
+  }, [mapReady, heatPluginReady, displayPoints, controls.showHeat, controls.radius, intensityScale])
 
   // Point markers
   useEffect(() => {
@@ -372,10 +431,15 @@ export default function LeafletRiskHeatmap({
     const scale = controls.intensity / 100
     const selectedLabel = hoverHandlersRef.current.selectedLabel
 
-    const markers = points.map((p) => {
-      const c = RISK_COLOR[p.risk]
+    const markers = displayPoints.map((p) => {
+      const isSearch = Boolean(p.isSearchLocation)
+      const c = isSearch
+        ? { fill: '#06b6d4', stroke: '#0e7490' }
+        : RISK_COLOR[p.risk]
       const isSelected = selectedLabel === p.label
-      const baseRadius = clamp(5 + Math.round(p.intensity * 14 * scale), 5, 22)
+      const baseRadius = isSearch
+        ? 10
+        : clamp(5 + Math.round(p.intensity * 14 * scale), 5, 22)
 
       const style = (radius: number, weight: number) => ({
         radius,
@@ -383,7 +447,7 @@ export default function LeafletRiskHeatmap({
         weight,
         opacity: 1,
         fillColor: c.fill,
-        fillOpacity: 0.88,
+        fillOpacity: isSearch ? 0.95 : 0.88,
       })
 
       const circle = L.circleMarker([p.lat, p.lng], {
@@ -424,10 +488,10 @@ export default function LeafletRiskHeatmap({
     return () => {
       markers.forEach((m) => m.remove())
     }
-  }, [mapReady, points, controls.showColumns, controls.intensity, selectedRegion?.label])
+  }, [mapReady, displayPoints, controls.showColumns, controls.intensity, selectedRegion?.label])
 
   return (
-    <div className="relative z-0 h-[72vh] min-h-[520px] w-full overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 shadow-sm [&_.leaflet-container]:h-full [&_.leaflet-container]:w-full [&_.leaflet-container]:bg-slate-800">
+    <div className="relative z-0 h-[72vh] min-h-[520px] w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm [&_.leaflet-container]:h-full [&_.leaflet-container]:w-full [&_.leaflet-container]:bg-slate-50">
       <div
         ref={containerRef}
         className="cedewise-leaflet-root z-0 h-full w-full min-h-[400px]"
@@ -450,38 +514,38 @@ export default function LeafletRiskHeatmap({
       )}
 
       <div className="pointer-events-none absolute left-4 top-4 right-4 z-[1000] flex items-start justify-between gap-3">
-        <div className="pointer-events-auto max-w-[780px] rounded-2xl border border-white/10 bg-slate-950/65 backdrop-blur-xl px-4 py-3 shadow-[0_20px_60px_rgba(0,0,0,0.45)]">
-          <div className="text-sm font-semibold text-white">CARTO dark basemap · risk heat</div>
-          <div className="mt-0.5 text-xs text-slate-300">
-            {controls.riskLayer} • {controls.timeRange} • Johannesburg / Gauteng · click empty map to clear
+        <div className="pointer-events-auto max-w-[780px] rounded-2xl border border-slate-200 bg-white/95 backdrop-blur-sm px-4 py-3 shadow-md">
+          <div className="text-sm font-semibold text-slate-900">Risk heatmap</div>
+          <div className="mt-0.5 text-xs text-slate-600">
+            {viewport.label} · {points.length} hotspots in region · {controls.riskLayer} • {controls.timeRange}
           </div>
         </div>
       </div>
 
       {active && !selectedRegion && (
-        <div className="absolute left-4 bottom-4 z-[1000] w-[min(420px,calc(100%-32px))] rounded-2xl border border-white/10 bg-slate-950/75 backdrop-blur-xl p-4 shadow-[0_24px_80px_rgba(0,0,0,0.55)]">
+        <div className="absolute left-4 bottom-4 z-[1000] w-[min(420px,calc(100%-32px))] rounded-2xl border border-slate-200 bg-white/95 backdrop-blur-sm p-4 shadow-lg">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="text-sm font-semibold text-white">{active.label}</div>
-              <div className="mt-0.5 text-xs text-slate-300">
-                Risk: <span className="text-white">{active.risk}</span> • Intensity{' '}
-                <span className="text-white">{Math.round(active.intensity * 100)}%</span>
+              <div className="text-sm font-semibold text-slate-900">{active.label}</div>
+              <div className="mt-0.5 text-xs text-slate-600">
+                Risk: <span className="font-medium text-slate-900">{active.risk}</span> • Intensity{' '}
+                <span className="font-medium text-slate-900">{Math.round(active.intensity * 100)}%</span>
               </div>
             </div>
           </div>
 
           <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
-            <div className="rounded-xl bg-white/5 border border-white/10 p-3">
-              <div className="text-slate-300/80">Estimated exposure</div>
-              <div className="mt-1 font-semibold text-white">{formatMoney(exposure ?? 0)}</div>
+            <div className="rounded-xl bg-slate-50 border border-slate-200 p-3">
+              <div className="text-slate-500">Estimated exposure</div>
+              <div className="mt-1 font-semibold text-slate-900">{formatMoney(exposure ?? 0)}</div>
             </div>
-            <div className="rounded-xl bg-white/5 border border-white/10 p-3">
-              <div className="text-slate-300/80">Active claims</div>
-              <div className="mt-1 font-semibold text-white">{claims ?? 0}</div>
+            <div className="rounded-xl bg-slate-50 border border-slate-200 p-3">
+              <div className="text-slate-500">Active claims</div>
+              <div className="mt-1 font-semibold text-slate-900">{claims ?? 0}</div>
             </div>
           </div>
 
-          <div className="mt-3 text-[11px] text-slate-300/70">Click the marker for full region dossier & Street View.</div>
+          <div className="mt-3 text-[11px] text-slate-500">Click the marker for full region dossier & Street View.</div>
         </div>
       )}
 
@@ -490,7 +554,7 @@ export default function LeafletRiskHeatmap({
           <button
             type="button"
             onClick={clearSelection}
-            className="rounded-xl bg-slate-950/80 px-3 py-2 text-xs font-semibold text-white shadow-lg ring-1 ring-white/15 backdrop-blur hover:bg-slate-900"
+            className="rounded-xl bg-white px-3 py-2 text-xs font-semibold text-slate-900 shadow-md ring-1 ring-slate-200 hover:bg-slate-50"
           >
             Clear selection
           </button>

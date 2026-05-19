@@ -3,9 +3,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Tab } from '@headlessui/react';
 import { PaperAirplaneIcon, DocumentArrowDownIcon, DocumentIcon } from '@heroicons/react/24/outline';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Chat from '@/components/Chat';
 import DocumentUpload from '@/components/DocumentUpload';
+import QuoteExportMenu from '@/components/QuoteExportMenu';
+import { useNotifications } from '@/context/NotificationContext';
+import { useUser } from '@/context/UserContext';
+import { appendQuoteChatMessage } from '@/lib/quoteChat';
+import { buildFacQuoteExportPayload } from '@/lib/quoteExport';
+import { syncQuotesToClientStorage, type SubmittedReinsurerQuote } from '@/lib/quoteStore';
 import { formatAmountDisplay } from '@/utils/currency';
 
 interface Message {
@@ -63,6 +69,9 @@ function submissionMatchesRoute(
 
 export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormProps) {
   const params = useParams();
+  const router = useRouter();
+  const { userName } = useUser();
+  const { addNotification } = useNotifications();
   const routeId = (params as any)?.id ? String((params as any).id) : null;
   const routeSubmissionId = useMemo(() => {
     if (!routeId) return null;
@@ -85,6 +94,9 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
   const [commission, setCommission] = useState<string>('20');
   const [overrider, setOverrider] = useState<string>('2.5');
   const [brokerage, setBrokerage] = useState<string>('2.5');
+  const [quoteConditions, setQuoteConditions] = useState<string>('');
+  const [isSubmittingQuote, setIsSubmittingQuote] = useState(false);
+  const [submitQuoteError, setSubmitQuoteError] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<'premium' | 'rate' | 'premium100' | null>(null);
   const chatSubmissionId = String(
     brokerNonPropSubmission?.policyReferenceNumber ?? routeId ?? 'unknown'
@@ -392,6 +404,209 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
       }
     }
   }, [layerAmount, lastEdited, quotePremiumAmount, quotePremiumRate]);
+
+  const premiumAtShareDisplay = useMemo(() => {
+    if (premiumNumber && !rateNumber) {
+      if (!premiumNumber) return '';
+      return shareOfferPct
+        ? `R ${formatMoneySpaces(premiumAtShareOffer.toFixed(2), 2)}`
+        : `R ${normalizeMoney(quotePremiumAmount)}`;
+    }
+    if (rateNumber) {
+      return shareOfferPct
+        ? `R ${formatMoneySpaces(premiumAtShareOfferFromRate.toFixed(2), 2)}`
+        : `R ${formatMoneySpaces(calcPremiumFromRate.toFixed(2), 2)}`;
+    }
+    return '';
+  }, [
+    premiumNumber,
+    rateNumber,
+    shareOfferPct,
+    premiumAtShareOffer,
+    quotePremiumAmount,
+    premiumAtShareOfferFromRate,
+    calcPremiumFromRate,
+  ]);
+
+  const premiumRateDisplay = useMemo(() => {
+    if (quotePremiumRate) return `${parseNumber(quotePremiumRate).toFixed(2)}%`;
+    if (layerAmount && premiumNumber) return `${calcRateFromPremium.toFixed(2)}%`;
+    return '';
+  }, [quotePremiumRate, layerAmount, premiumNumber, calcRateFromPremium]);
+
+  const premium100Display = useMemo(() => {
+    if (premiumNumber) return `R ${formatMoneySpacesLoose(quotePremiumAmount, 6)}`;
+    if (rateNumber) return `R ${formatMoneySpacesLoose(calcPremiumFromRate.toString(), 6)}`;
+    return '';
+  }, [premiumNumber, rateNumber, quotePremiumAmount, calcPremiumFromRate]);
+
+  const brokerRecipientEmail = useMemo(() => {
+    const email = effectiveSubmission?.brokerEmail;
+    return typeof email === 'string' && email.includes('@') ? email : undefined;
+  }, [effectiveSubmission]);
+
+  const buildExportPayload = (facType: 'proportional' | 'non-proportional') =>
+    buildFacQuoteExportPayload({
+      facType,
+      submission: effectiveSubmission as Record<string, unknown>,
+      quote: {
+        shareOffer,
+        quotePremiumAmount,
+        quotePremiumRate,
+        layer,
+        excessOf,
+        commission,
+        overrider,
+        brokerage,
+        deductionsPreset,
+        totalDeductions,
+        quoteConditions,
+        isProposingNewValues,
+        premiumAtShareDisplay,
+        premiumRateDisplay,
+        premium100Display,
+        sumInsuredFormatted,
+      },
+    });
+
+  const proportionalExportPayload = useMemo(
+    () => buildExportPayload('proportional'),
+    [
+      effectiveSubmission,
+      shareOffer,
+      quotePremiumAmount,
+      quotePremiumRate,
+      layer,
+      excessOf,
+      commission,
+      overrider,
+      brokerage,
+      deductionsPreset,
+      totalDeductions,
+      quoteConditions,
+      isProposingNewValues,
+      premiumAtShareDisplay,
+      premiumRateDisplay,
+      premium100Display,
+      sumInsuredFormatted,
+    ]
+  );
+
+  const nonProportionalExportPayload = useMemo(
+    () => buildExportPayload('non-proportional'),
+    [
+      effectiveSubmission,
+      shareOffer,
+      quotePremiumAmount,
+      quotePremiumRate,
+      layer,
+      excessOf,
+      commission,
+      overrider,
+      brokerage,
+      deductionsPreset,
+      totalDeductions,
+      quoteConditions,
+      isProposingNewValues,
+      premiumAtShareDisplay,
+      premiumRateDisplay,
+      premium100Display,
+      sumInsuredFormatted,
+    ]
+  );
+
+  const submitQuoteToBroker = async (facType: 'proportional' | 'non-proportional') => {
+    if (!shareOffer.trim()) {
+      setSubmitQuoteError('Please enter a share offer (%) before submitting your quote.');
+      return;
+    }
+
+    const submissionId = String(
+      routeId ?? (effectiveSubmission as { id?: string | number }).id ?? 'unknown'
+    );
+    const exportPayload = buildExportPayload(facType);
+    const brokerEmails: string[] = [];
+    if (brokerRecipientEmail) brokerEmails.push(brokerRecipientEmail);
+
+    const fallbackBrokerEmail = (effectiveSubmission as { brokerEmail?: string }).brokerEmail;
+    if (
+      typeof fallbackBrokerEmail === 'string' &&
+      fallbackBrokerEmail.includes('@') &&
+      !brokerEmails.includes(fallbackBrokerEmail)
+    ) {
+      brokerEmails.push(fallbackBrokerEmail);
+    }
+
+    setIsSubmittingQuote(true);
+    setSubmitQuoteError(null);
+
+    try {
+      const res = await fetch('/api/reinsurer-quotes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          submissionId,
+          facType,
+          reference: exportPayload.reference,
+          insured: String(effectiveSubmission.insured ?? effectiveSubmission.insuredName ?? ''),
+          cedingCompany: String(
+            effectiveSubmission.company ?? effectiveSubmission.cedingCompany ?? ''
+          ),
+          brokerName: String(
+            effectiveSubmission.brokerName ?? effectiveSubmission.broker ?? 'Broker'
+          ),
+          brokerEmails,
+          reinsurerName: userName ?? 'Emeritus Re',
+          quote: {
+            shareOffer,
+            quotePremiumAmount,
+            quotePremiumRate,
+            layer,
+            excessOf,
+            commission,
+            overrider,
+            brokerage,
+            totalDeductions,
+            deductionsPreset,
+            quoteConditions,
+            isProposingNewValues,
+            premiumAtShareDisplay,
+            premiumRateDisplay,
+            premium100Display,
+            sumInsuredFormatted,
+          },
+          submissionSnapshot: effectiveSubmission,
+        }),
+      });
+
+      const json = (await res.json()) as { success?: boolean; quote?: unknown; error?: string };
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || 'Failed to submit quote');
+      }
+
+      if (json.quote && typeof json.quote === 'object') {
+        syncQuotesToClientStorage([json.quote as SubmittedReinsurerQuote]);
+      }
+
+      const ref = exportPayload.reference;
+      const premiumSummary = premiumAtShareDisplay || quotePremiumAmount || '—';
+      appendQuoteChatMessage(
+        chatSubmissionId,
+        `${userName ?? 'Reinsurer'} submitted a ${facType === 'proportional' ? 'proportional' : 'non-proportional'} facultative quote for ${ref}: ${shareOffer}% share, premium ${premiumSummary}.`
+      );
+
+      addNotification(
+        `Quote submitted to broker${brokerEmails.length ? ` (${brokerEmails.join(', ')})` : ''} for ${ref}`
+      );
+
+      router.push('/non-life/reinsurer?quoteSubmitted=1');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to submit quote';
+      setSubmitQuoteError(message);
+    } finally {
+      setIsSubmittingQuote(false);
+    }
+  };
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -818,8 +1033,16 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
                       <Tab.Panel className="p-6">
                         <div className="space-y-6">
                           <div className="bg-white p-6 rounded-lg border border-gray-200">
-                            <h3 className="text-lg font-medium text-gray-900 mb-4">Emeritus Re's Quote</h3>
-                            <p className="text-sm text-gray-600 mb-6">Provide your proposal for this proportional facultative submission</p>
+                            <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
+                              <div>
+                                <h3 className="text-lg font-medium text-gray-900">Emeritus Re&apos;s Quote</h3>
+                                <p className="text-sm text-gray-600 mt-1">Provide your proposal for this proportional facultative submission</p>
+                              </div>
+                              <QuoteExportMenu
+                                payload={proportionalExportPayload}
+                                recipientEmail={brokerRecipientEmail}
+                              />
+                            </div>
 
                             <div className="grid grid-cols-2 gap-6">
                               <div>
@@ -1116,6 +1339,8 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
                               <label className="block text-sm font-medium text-gray-700">Quote Conditions & Comments</label>
                               <textarea
                                 rows={4}
+                                value={quoteConditions}
+                                onChange={(e) => setQuoteConditions(e.target.value)}
                                 className="mt-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
                                 placeholder="Enter any conditions or comments related to your quote..."
                               />
@@ -1134,6 +1359,12 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
                               </p>
                             </div>
 
+                            {submitQuoteError && (
+                              <p className="mt-4 text-sm text-red-600" role="alert">
+                                {submitQuoteError}
+                              </p>
+                            )}
+
                             <div className="mt-8 flex justify-end space-x-3">
                               <button
                                 type="button"
@@ -1143,9 +1374,11 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
                               </button>
                               <button
                                 type="button"
-                                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                                disabled={isSubmittingQuote}
+                                onClick={() => void submitQuoteToBroker('proportional')}
+                                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-60"
                               >
-                                Submit Quote
+                                {isSubmittingQuote ? 'Submitting…' : 'Submit Quote'}
                               </button>
                             </div>
 
@@ -1891,9 +2124,17 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
                       <Tab.Panel className="p-6">
                         <div className="space-y-6">
                           <div className="bg-white p-6 rounded-lg border border-gray-200">
-                            <h3 className="text-lg font-medium text-gray-900 mb-4">Emeritus Re's Quote</h3>
-                            <p className="text-sm text-gray-600 mb-6">Provide your proposal for this non-proportional reinsurance submission</p>
-                            
+                            <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
+                              <div>
+                                <h3 className="text-lg font-medium text-gray-900">Emeritus Re&apos;s Quote</h3>
+                                <p className="text-sm text-gray-600 mt-1">Provide your proposal for this non-proportional reinsurance submission</p>
+                              </div>
+                              <QuoteExportMenu
+                                payload={nonProportionalExportPayload}
+                                recipientEmail={brokerRecipientEmail}
+                              />
+                            </div>
+
                             <div className="grid grid-cols-2 gap-6">
                               <div>
                                 <label className="block text-sm font-medium text-gray-700">Share Offer (%)</label>
@@ -2234,6 +2475,8 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
                               <label className="block text-sm font-medium text-gray-700">Quote Conditions & Comments</label>
                               <textarea
                                 rows={4}
+                                value={quoteConditions}
+                                onChange={(e) => setQuoteConditions(e.target.value)}
                                 className="mt-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
                                 placeholder="Enter any conditions or comments related to your quote..."
                               />
@@ -2252,6 +2495,12 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
                               </p>
                             </div>
 
+                            {submitQuoteError && (
+                              <p className="mt-4 text-sm text-red-600" role="alert">
+                                {submitQuoteError}
+                              </p>
+                            )}
+
                             <div className="mt-8 flex justify-end space-x-3">
                               <button
                                 type="button"
@@ -2261,9 +2510,11 @@ export default function ReinsurerSubmissionForm({ type, data }: SubmissionFormPr
                               </button>
                               <button
                                 type="button"
-                                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                                disabled={isSubmittingQuote}
+                                onClick={() => void submitQuoteToBroker('non-proportional')}
+                                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-60"
                               >
-                                Submit Quote
+                                {isSubmittingQuote ? 'Submitting…' : 'Submit Quote'}
                               </button>
                             </div>
                           </div>

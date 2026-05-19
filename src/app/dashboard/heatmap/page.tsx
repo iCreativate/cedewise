@@ -1,217 +1,20 @@
 'use client'
 
-import dynamic from 'next/dynamic'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import HeatmapKpiCards from '@/components/dashboard/HeatmapKpiCards'
 import HeatmapRegionDetailPanel from '@/components/dashboard/HeatmapRegionDetailPanel'
 import HeatmapStreetView from '@/components/dashboard/HeatmapStreetView'
-import type { HeatmapPoint, RegionRiskDetail } from '@/types/heatmap'
-import type { LeafletHeatmapControls } from '@/components/dashboard/LeafletRiskHeatmap'
-
-const LeafletRiskHeatmap = dynamic(() => import('@/components/dashboard/LeafletRiskHeatmap'), {
-  ssr: false,
-  loading: () => (
-    <div className="h-[72vh] min-h-[520px] w-full rounded-2xl border border-slate-200 bg-white shadow-sm animate-pulse" />
-  ),
-})
-
-function detail(partial: Partial<RegionRiskDetail> & Pick<RegionRiskDetail, 'municipality' | 'summary'>): RegionRiskDetail {
-  return {
-    province: 'Gauteng',
-    predominantPerils: ['Fire & allied perils', 'Business interruption', 'Theft'],
-    indicativeExposure: 'R 400M – R 1.2B',
-    lossRatioBand: '42% – 58%',
-    activePolicies: 210,
-    openClaims: 12,
-    premiumBenchmark: '0.55% – 0.95% of TSI (indicative)',
-    underwritingFocus: [
-      'Reconcile TSI vs. occupancy schedules for this cell.',
-      'Stress BI and waiting periods against recent large-loss patterns.',
-    ],
-    reinsuranceAngle: 'Layered programme with nat-cat sub-limits recommended for peak Gauteng corridors.',
-    ...partial,
-  }
-}
+import type { HeatmapPoint } from '@/types/heatmap'
+import HeatmapLocationSearch from '@/components/dashboard/HeatmapLocationSearch'
+import RiskHeatmap, { type LeafletHeatmapControls, type MapFlyToTarget } from '@/components/dashboard/RiskHeatmap'
+import type { GeocodeResult } from '@/lib/geocode'
+import { getAllHeatmapPoints } from '@/data/heatmapPoints'
+import { createHeatmapPointFromSearch } from '@/lib/heatmapFromLocation'
+import { useHeatmapViewport } from '@/hooks/useHeatmapViewport'
+import { zoomForRegionalRadius } from '@/lib/heatmapRegion'
 
 export default function HeatmapsPage() {
-  const heatmapPoints: HeatmapPoint[] = useMemo(
-    () => [
-      {
-        lat: -26.2041,
-        lng: 28.0473,
-        intensity: 0.95,
-        label: 'Johannesburg CBD',
-        risk: 'Critical',
-        details: detail({
-          municipality: 'Johannesburg',
-          summary:
-            'Dense CBD commercial stack with elevated BI accumulation and concentration of high-value retail and offices. Street-level review should focus on ingress/egress, fire compartmentation, and neighbouring exposures.',
-          predominantPerils: ['Fire', 'BI / CBI', 'Political violence spillover', 'Theft'],
-          indicativeExposure: 'R 2.4B – R 3.6B',
-          lossRatioBand: '72% – 88%',
-          activePolicies: 412,
-          openClaims: 38,
-          premiumBenchmark: '1.05% – 1.45% of TSI (indicative)',
-          underwritingFocus: [
-            'Demand updated valuations and sprinkler inspection certificates.',
-            'Map BI indemnity vs. realistic maximum indemnity period.',
-            'Peer review against Sandton / Rosebank cluster correlations.',
-          ],
-          reinsuranceAngle:
-            'Strong case for facultative top-up or per-risk excess of loss before binding primary layer renewals.',
-          lineOfBusiness: 'CBD commercial property',
-          quotableBusinesses: [
-            { id: 'jhb-cbd-all', name: 'Full CBD cell (aggregated portfolio)', segment: 'Portfolio' },
-            {
-              id: 'jhb-cbd-1',
-              name: 'Carlton Centre — retail & upper offices',
-              segment: 'Retail / office',
-              location: '45 Commissioner St, Johannesburg CBD',
-              tsiBand: 'R 410M – R 620M',
-              summary: 'Super-block retail and tower offices; high BI dependency and dense footfall — confirm fire engineering and sprinkler maintenance records.',
-              policiesCount: 14,
-              openClaims: 5,
-            },
-            {
-              id: 'jhb-cbd-2',
-              name: 'Marshalltown fire-precinct commercial cluster',
-              segment: 'Commercial property',
-              location: 'Marshalltown / Simmonds St precinct',
-              tsiBand: 'R 95M – R 210M',
-              summary: 'Mid-rise commercial stack; peer with Gandhi Square for grid and civil unrest correlation.',
-              policiesCount: 9,
-              openClaims: 2,
-            },
-            {
-              id: 'jhb-cbd-3',
-              name: 'Gandhi Square — transport-adjacent retail',
-              segment: 'Retail',
-              location: 'Gandhi Square & Lillian Ngoyi St',
-              tsiBand: 'R 38M – R 92M',
-              summary: 'Commuter-heavy retail; theft and glass perils elevated — line-size often layered with CBD programme.',
-              policiesCount: 22,
-              openClaims: 4,
-            },
-          ],
-        }),
-      },
-      {
-        lat: -26.1076,
-        lng: 28.0567,
-        intensity: 0.75,
-        label: 'Sandton',
-        risk: 'High',
-        details: detail({
-          municipality: 'Sandton',
-          summary:
-            'Premium office and mixed-use node with sustained placement activity. Loss experience skewed to water damage and power-surge BI events.',
-          indicativeExposure: 'R 1.1B – R 2.0B',
-          lossRatioBand: '58% – 72%',
-          activePolicies: 318,
-          openClaims: 22,
-          lineOfBusiness: 'Office / mixed-use',
-          quotableBusinesses: [
-            { id: 'sdn-all', name: 'Full Sandton cell (aggregated)', segment: 'Portfolio' },
-            { id: 'sdn-1', name: 'Sandton City — super-regional mall', segment: 'Retail' },
-            { id: 'sdn-2', name: 'Alice Lane / Fredman Drive office strip', segment: 'Office' },
-            { id: 'sdn-3', name: 'Sandton Gautrain precinct mixed-use', segment: 'Mixed-use' },
-          ],
-        }),
-      },
-      {
-        lat: -26.1451,
-        lng: 28.0341,
-        intensity: 0.65,
-        label: 'Rosebank',
-        risk: 'High',
-        details: detail({
-          municipality: 'Rosebank',
-          summary:
-            'Mid-rise commercial hub with retail podiums; watch for aggregation with adjacent nodes on the same grid.',
-          indicativeExposure: 'R 720M – R 1.4B',
-          lossRatioBand: '54% – 68%',
-          activePolicies: 256,
-          openClaims: 17,
-          quotableBusinesses: [
-            { id: 'rb-all', name: 'Full Rosebank cell (aggregated)', segment: 'Portfolio' },
-            { id: 'rb-1', name: 'The Zone @ Rosebank — retail podium', segment: 'Retail' },
-            { id: 'rb-2', name: 'Oxford / Cradock mid-rise offices', segment: 'Office' },
-            { id: 'rb-3', name: 'Rosebank Mall — anchor & line shops', segment: 'Retail' },
-          ],
-        }),
-      },
-      {
-        lat: -26.2678,
-        lng: 27.8585,
-        intensity: 0.55,
-        label: 'Soweto',
-        risk: 'Medium',
-        details: detail({
-          municipality: 'Soweto',
-          summary:
-            'Residential and light commercial mix with different peril mix (fire, weather, liability). Community exposure drivers differ from CBD core.',
-          predominantPerils: ['Fire', 'Weather', 'Liability'],
-          indicativeExposure: 'R 180M – R 520M',
-          lossRatioBand: '44% – 58%',
-          activePolicies: 540,
-          openClaims: 31,
-          lineOfBusiness: 'Residential / SMME',
-          quotableBusinesses: [
-            { id: 'sow-all', name: 'Full Soweto cell (aggregated)', segment: 'Portfolio' },
-            { id: 'sow-1', name: 'Jabulani Mall — community retail hub', segment: 'Retail' },
-            { id: 'sow-2', name: 'Maponya Mall — mixed retail & offices', segment: 'Mixed' },
-            { id: 'sow-3', name: 'SMME light industrial strip — Orlando', segment: 'SMME' },
-          ],
-        }),
-      },
-      {
-        lat: -26.3225,
-        lng: 28.1237,
-        intensity: 0.45,
-        label: 'Alberton',
-        risk: 'Medium',
-        details: detail({
-          municipality: 'Alberton',
-          summary:
-            'Industrial fringe and logistics exposure; check for stacking with highway-adjacent risks and hail history.',
-          indicativeExposure: 'R 140M – R 380M',
-          lossRatioBand: '40% – 54%',
-          activePolicies: 198,
-          openClaims: 11,
-          lineOfBusiness: 'Industrial / logistics',
-          quotableBusinesses: [
-            { id: 'alb-all', name: 'Full Alberton cell (aggregated)', segment: 'Portfolio' },
-            { id: 'alb-1', name: 'Alrode industrial park — heavy plant', segment: 'Industrial' },
-            { id: 'alb-2', name: 'N12 logistics warehouse cluster', segment: 'Logistics' },
-            { id: 'alb-3', name: 'Highway-adjacent cold storage', segment: 'Logistics' },
-          ],
-        }),
-      },
-      {
-        lat: -26.1883,
-        lng: 28.3208,
-        intensity: 0.35,
-        label: 'Benoni',
-        risk: 'Low',
-        details: detail({
-          municipality: 'Benoni',
-          summary:
-            'Lower heat intensity cell suitable for cleaner primary terms, subject to standard underwriting evidence.',
-          indicativeExposure: 'R 90M – R 240M',
-          lossRatioBand: '32% – 46%',
-          activePolicies: 142,
-          openClaims: 6,
-          premiumBenchmark: '0.35% – 0.65% of TSI (indicative)',
-          quotableBusinesses: [
-            { id: 'ben-all', name: 'Full Benoni cell (aggregated)', segment: 'Portfolio' },
-            { id: 'ben-1', name: 'Lakefield office park', segment: 'Office' },
-            { id: 'ben-2', name: 'Northmead light industrial row', segment: 'SMME' },
-          ],
-        }),
-      },
-    ],
-    []
-  )
+  const heatmapPoints = useMemo(() => getAllHeatmapPoints(), [])
 
   const [controls, setControls] = useState<LeafletHeatmapControls>({
     riskLayer: 'Policy Exposure',
@@ -223,11 +26,39 @@ export default function HeatmapsPage() {
   })
 
   const [selectedRegion, setSelectedRegion] = useState<HeatmapPoint | null>(null)
+  const [searchedPoint, setSearchedPoint] = useState<HeatmapPoint | null>(null)
+  const [flyTo, setFlyTo] = useState<MapFlyToTarget | null>(null)
   const regionPanelRef = useRef<HTMLDivElement | null>(null)
+
+  const {
+    viewport,
+    regionalPoints,
+    userLocation,
+    geoStatus,
+    requestGeolocation,
+    setViewportFromSearch,
+  } = useHeatmapViewport(heatmapPoints, searchedPoint)
 
   const handleSelectRegion = useCallback((region: HeatmapPoint | null) => {
     setSelectedRegion(region)
   }, [])
+
+  const handleSearchLocation = useCallback(
+    (result: GeocodeResult) => {
+      const point = createHeatmapPointFromSearch(result)
+      setSearchedPoint(point)
+      setSelectedRegion(point)
+      setViewportFromSearch(result)
+      const zoom =
+        result.displayName.split(',').length <= 2
+          ? zoomForRegionalRadius(viewport.radiusKm)
+          : result.displayName.match(/\d/)
+            ? 14
+            : 12
+      setFlyTo({ lat: result.lat, lng: result.lng, zoom, key: Date.now() })
+    },
+    [setViewportFromSearch, viewport.radiusKm]
+  )
 
   useEffect(() => {
     if (!selectedRegion) return
@@ -245,12 +76,21 @@ export default function HeatmapsPage() {
         </div>
         <h1 className="mt-3 text-3xl font-bold text-slate-900">Heatmaps</h1>
         <p className="mt-2 text-slate-600">
-          Visualize regional risk concentration, claim density, broker activity, and policy exposure — then open Street View and a regional dossier to support quoting.
+          Risk concentration for your area — allow location access or search where you want to quote. Hotspots are filtered to the active region.
         </p>
       </div>
 
       <div className="mb-6">
         <HeatmapKpiCards />
+      </div>
+
+      <div className="mb-4 rounded-2xl border border-cyan-100 bg-gradient-to-r from-cyan-50/80 to-white p-4 shadow-sm">
+        <HeatmapLocationSearch
+          onSelectLocation={handleSearchLocation}
+          onUseMyLocation={requestGeolocation}
+          geoStatus={geoStatus}
+          regionLabel={viewport.label}
+        />
       </div>
 
       <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -340,11 +180,14 @@ export default function HeatmapsPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_minmax(280px,360px)] lg:items-stretch">
-        <LeafletRiskHeatmap
-          points={heatmapPoints}
+        <RiskHeatmap
+          points={regionalPoints}
+          viewport={viewport}
+          userLocation={userLocation}
           controls={controls}
           selectedRegion={selectedRegion}
           onSelectRegion={handleSelectRegion}
+          flyTo={flyTo}
         />
         <HeatmapStreetView region={selectedRegion} />
       </div>

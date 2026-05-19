@@ -8,6 +8,13 @@ import CommissionBadge from '@/components/CommissionBadge'
 import ClassOfBusinessChart from '@/components/Analytics/ClassOfBusinessChart'
 import StatisticsCards from '@/components/Analytics/StatisticsCards'
 import SubmissionsByPeriod from '@/components/Analytics/SubmissionsByPeriod'
+import { useNotifications } from '@/context/NotificationContext'
+import {
+  applyQuoteToBrokerSubmission,
+  mergeQuotes,
+  readQuotesFromClientStorage,
+  type SubmittedReinsurerQuote,
+} from '@/lib/quoteStore'
 
 // Function to format date
 function formatDate(dateString: string) {
@@ -19,7 +26,27 @@ function formatDate(dateString: string) {
   }).format(date);
 }
 
+function applyQuotesToList<T extends { id?: number | string; policyReferenceNumber?: string }>(
+  list: T[],
+  quotes: SubmittedReinsurerQuote[],
+  facType: SubmittedReinsurerQuote['facType']
+): T[] {
+  const relevant = quotes.filter((q) => q.facType === facType);
+  if (relevant.length === 0) return list;
+
+  return list.map((submission) => {
+    const match = relevant.find(
+      (q) =>
+        String(q.submissionId) === String(submission.id) ||
+        (submission.policyReferenceNumber &&
+          q.reference === submission.policyReferenceNumber)
+    );
+    return match ? applyQuoteToBrokerSubmission(submission, match) : submission;
+  });
+}
+
 export default function FacultativeSubmissionsPage() {
+  const { addNotification } = useNotifications();
   // States for tab selection, search, filtering and data
   const [searchQuery, setSearchQuery] = useState('');
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -197,9 +224,32 @@ export default function FacultativeSubmissionsPage() {
           }
         ];
 
+        let quotes: SubmittedReinsurerQuote[] = [];
+        try {
+          const res = await fetch('/api/reinsurer-quotes');
+          const json = (await res.json()) as { quotes?: SubmittedReinsurerQuote[] };
+          if (res.ok && Array.isArray(json.quotes)) {
+            quotes = json.quotes;
+          }
+        } catch {
+          // use client storage only
+        }
+        quotes = mergeQuotes(quotes, readQuotesFromClientStorage());
+
+        const proportionalWithQuotes = applyQuotesToList(
+          mockProportionalData,
+          quotes,
+          'proportional'
+        );
+        const nonProportionalWithQuotes = applyQuotesToList(
+          mockNonProportionalData,
+          quotes,
+          'non-proportional'
+        );
+
         setSubmissions({
-          proportional: mockProportionalData,
-          nonProportional: mockNonProportionalData
+          proportional: proportionalWithQuotes,
+          nonProportional: nonProportionalWithQuotes,
         });
         
         setLoading(false);
@@ -210,7 +260,19 @@ export default function FacultativeSubmissionsPage() {
     };
 
     fetchSubmissions();
-  }, []);
+
+    const onQuoteSubmitted = (e: Event) => {
+      const quote = (e as CustomEvent<SubmittedReinsurerQuote>).detail;
+      if (quote) {
+        addNotification(
+          `Reinsurer quote received for ${quote.reference} (${quote.quote.shareOffer}% share)`
+        );
+      }
+      void fetchSubmissions();
+    };
+    window.addEventListener('cedewise:quote-submitted', onQuoteSubmitted);
+    return () => window.removeEventListener('cedewise:quote-submitted', onQuoteSubmitted);
+  }, [addNotification]);
 
   // Filter submissions based on search query, status and commission type
   const filteredSubmissions = {

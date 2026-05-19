@@ -46,5 +46,7 @@ export type HeatmapPoint = {
   intensity: number
   label: string
   risk: RiskLevel
+  /** True when the user searched for this place (not a pre-loaded Gauteng cell). */
+  isSearchLocation?: boolean
   details?: RegionRiskDetail
 }

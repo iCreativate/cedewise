@@ -220,7 +220,9 @@ export default function NonProportionalFacultativeReinsurancePage() {
     if (activeTab === 'risk-address' && mapRef.current && !googleMapRef.current) {
       const loadGoogleMapsScript = () => {
         const script = document.createElement('script')
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`
+        const mapsKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY?.trim()
+        if (!mapsKey) return
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(mapsKey)}`
         script.async = true
         script.defer = true
         script.onerror = () => {

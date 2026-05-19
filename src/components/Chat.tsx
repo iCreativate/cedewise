@@ -138,9 +138,18 @@ export default function Chat({ submissionId, className = '', participantLabels }
       if (e.key !== storageKey) return
       applyMessagesIfChanged()
     }
+    const onChatUpdated = (e: Event) => {
+      const detail = (e as CustomEvent<{ submissionId?: string }>).detail
+      if (detail?.submissionId && detail.submissionId !== submissionId) return
+      applyMessagesIfChanged()
+    }
     window.addEventListener('storage', onStorage)
-    return () => window.removeEventListener('storage', onStorage)
-  }, [applyMessagesIfChanged, storageKey])
+    window.addEventListener('cedewise:chat-updated', onChatUpdated)
+    return () => {
+      window.removeEventListener('storage', onStorage)
+      window.removeEventListener('cedewise:chat-updated', onChatUpdated)
+    }
+  }, [applyMessagesIfChanged, storageKey, submissionId])
 
   // Live updates within same tab and across tabs (BroadcastChannel)
   useEffect(() => {

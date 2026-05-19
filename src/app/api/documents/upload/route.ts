@@ -46,6 +46,17 @@ export async function POST(request: NextRequest) {
     const uploadResult = await uploadFileToS3(bucketName, key, buffer, contentType);
 
     if (!uploadResult.success) {
+      if (process.env.NODE_ENV === 'development') {
+        return NextResponse.json({
+          success: true,
+          key,
+          name: file.name,
+          type: contentType,
+          size: file.size,
+          url: null,
+          warning: 'Stored locally only — S3 upload failed in development.',
+        });
+      }
       return NextResponse.json(
         { success: false, error: 'Upload to storage failed.' },
         { status: 502 }
